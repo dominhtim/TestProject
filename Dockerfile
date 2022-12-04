@@ -10,7 +10,7 @@ COPY mvnw pom.xml ./
 RUN chmod -R 777 ./mvnw
 RUN ./mvnw dependency:go-offline
 COPY ./src ./src
-RUN ./mvnw clean install
+RUN ./mvnw clean package
 
 FROM eclipse-temurin:17
 WORKDIR /opt/app

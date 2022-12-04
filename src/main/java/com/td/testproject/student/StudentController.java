@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping(path = "api/v1/student")
+@RequestMapping(path = "api/v1/student/")
 public class StudentController {
 
     private BaseService service;
@@ -27,29 +27,29 @@ public class StudentController {
         this.service = service;
     }
 
-    @GetMapping("/")
+    @GetMapping
     public List<Student> getStudents() {
         return service.getStudents();
     }
 
-    @PostMapping("/")
-    @ResponseStatus(code = HttpStatus.CREATED)
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     public Student addStudent(@RequestBody Student student) {
         return service.addStudent(student);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("{id}")
     public Student getStudent(@PathVariable String id) {
         return service.getStudent(id);
     }
 
-    @DeleteMapping("/{id}")
-    @ResponseStatus(code = HttpStatus.NO_CONTENT)
+    @DeleteMapping("{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteStudent(@PathVariable String id) {
         service.deleteStudent(id);
     }
 
-    @PatchMapping("/{id}")
+    @PatchMapping("{id}")
     public Student updateStudent(@PathVariable String id, @RequestBody Student student) {
         return service.updateStudent(id, student);
     }

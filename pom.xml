@@ -4,7 +4,10 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
+
     <parent>
+        <!-- Reverted to 4.0.0 as requested. Warning: This is likely an unreleased
+             or snapshot version and may cause dependency resolution issues. -->
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>4.0.0</version>
@@ -53,12 +56,11 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Testing -->
+        <!-- Testing: Standard starter which manages most test dependencies -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
-            <!-- Exclude JUnit 4 vintage engine if present -->
             <exclusions>
                 <exclusion>
                     <groupId>org.junit.vintage</groupId>
@@ -67,14 +69,20 @@
             </exclusions>
         </dependency>
 
-        <!-- FIX: Explicitly adding core test dependencies that contain the annotations.
-             This resolves the "package does not exist" errors for @WebMvcTest, @MockBean,
-             AutoConfigureMockMvc, and ObjectMapper in some environments. -->
+        <!-- FIX: Explicitly adding low-level test dependencies to ensure
+             @WebMvcTest, @MockBean, and AutoConfigureMockMvc are found,
+             mitigating issues with the 4.0.0 parent version's transitive resolution. -->
         <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-test</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-test-autoconfigure</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Keep jackson-databind explicit for ObjectMapper stability -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>

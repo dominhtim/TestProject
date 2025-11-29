@@ -1,0 +1,35 @@
+name: Java CI with Maven (Spring Boot 4.0 / JDK 21)
+
+# Triggers the workflow on push or pull request events on the main branch
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build_and_test:
+    # Run on the latest Ubuntu environment
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        # Uses the standard action to clone your repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        # Uses the setup-java action to install the specific Java version
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven # Caches Maven dependencies for faster builds
+
+      - name: Build with Maven and Run Tests
+        # Execute the standard Maven clean install command
+        run: mvn -B clean install --file pom.xml
+
+      - name: Display Build Success Message
+        # Simple step to confirm successful build and testing
+        if: success()
+        run: echo "✅ Build and Tests successful! Application is ready."

@@ -66,6 +66,20 @@
                 </exclusion>
             </exclusions>
         </dependency>
+
+        <!-- FIX: Explicitly adding core test dependencies that contain the annotations.
+             This resolves the "package does not exist" errors for @WebMvcTest, @MockBean,
+             AutoConfigureMockMvc, and ObjectMapper in some environments. -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

@@ -25,10 +25,13 @@
     </properties>
 
     <dependencies>
-        <!-- Core Spring Boot Starters -->
+        <!-- Core Spring Boot Starters.
+             Spring Boot 4 modularized spring-boot-starter-web into
+             technology-specific starters; for a servlet/Spring MVC app the
+             replacement is spring-boot-starter-webmvc. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -37,6 +40,27 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- JSON support. Spring Boot 4 no longer bundles this with
+             spring-boot-starter-webmvc; without it the app can't
+             serialize/deserialize JSON at all. Auto-configures a Jackson 3
+             JsonMapper. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jackson</artifactId>
+        </dependency>
+
+        <!-- H2 web console. Spring Boot 4 split its auto-configuration out
+             of the raw h2 dependency; without this module,
+             spring.h2.console.enabled=true has no effect. Note: there is no
+             "spring-boot-starter-h2-console" wrapper (some early Boot 4
+             docs/blog posts reference one from a pre-release milestone) -
+             this module is depended on directly, and is still covered by
+             the parent's dependency management (no explicit version). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-h2console</artifactId>
         </dependency>
 
         <!-- Database: In-memory H2 for development and testing -->
@@ -54,10 +78,16 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Testing: Standard starter which manages most test dependencies -->
+        <!-- Testing: Spring Boot 4 ships a dedicated *-test starter per
+             production starter instead of one catch-all spring-boot-starter-test.
+             Each of these brings spring-boot-starter-test (JUnit 5, Mockito,
+             AssertJ, Jackson, ...) transitively, so it doesn't need to be
+             declared separately. -->
+
+        <!-- MockMvc, @WebMvcTest, @AutoConfigureMockMvc, MockMvcTester -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
@@ -67,19 +97,40 @@
             </exclusions>
         </dependency>
 
-        <!-- FIX: Explicitly adding low-level test dependencies to ensure
-             @WebMvcTest, @MockBean, and AutoConfigureMockMvc are found -->
+        <!-- RestTestClient / TestRestTemplate for real-HTTP integration tests
+             against a running embedded server (@SpringBootTest RANDOM_PORT) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-test</artifactId>
+            <artifactId>spring-boot-starter-restclient-test</artifactId>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.junit.vintage</groupId>
+                    <artifactId>junit-vintage-engine</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
+
+        <!-- Test-support counterpart for spring-boot-starter-jackson -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-test-autoconfigure</artifactId>
+            <artifactId>spring-boot-starter-jackson-test</artifactId>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.junit.vintage</groupId>
+                    <artifactId>junit-vintage-engine</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
-        <!-- Keep jackson-databind explicit for ObjectMapper stability -->
+
+        <!-- Spring Boot 4's auto-configured JSON mapper is Jackson 3
+             (tools.jackson.databind.json.JsonMapper). TaskControllerUnitTest
+             builds request bodies with the classic Jackson 2 ObjectMapper
+             (com.fasterxml.jackson.databind.ObjectMapper) as a plain,
+             non-Spring-managed utility, which needs the Jackson 2 databind
+             jar explicitly since spring-boot-starter-jackson only brings
+             Jackson 3 plus the shared jackson-annotations module. -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>

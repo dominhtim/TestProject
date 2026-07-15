@@ -5,7 +5,7 @@ import com.example.repository.TaskRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -33,8 +33,12 @@ class TaskControllerUnitTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    // Built directly rather than autowired: Spring Boot 4's auto-configured
+    // JSON mapper bean is Jackson 3's JsonMapper, not this (Jackson 2)
+    // ObjectMapper type, so there's no guarantee a matching bean exists in
+    // the context. This is just a local test utility for building request
+    // JSON, independent of whatever the app itself uses at runtime.
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     // Mock the TaskRepository dependency
     @MockitoBean

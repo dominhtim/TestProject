@@ -18,7 +18,7 @@ jobs:
       contents: write # required by the dependency-submission step below
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up JDK 25 (Temurin)
         uses: actions/setup-java@v5
@@ -53,7 +53,7 @@ jobs:
     needs: build-and-test
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4

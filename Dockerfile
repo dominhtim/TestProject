@@ -1,7 +1,7 @@
 # --- STAGE 1: Build the application ---
 # Uses an official Maven+Temurin image so the build doesn't depend on a
 # Maven wrapper being present in the repo (this project doesn't ship one).
-FROM maven:3.9-eclipse-temurin-25-alpine AS build
+FROM maven:3-eclipse-temurin-26-alpine AS build
 
 # Set the working directory
 WORKDIR /app

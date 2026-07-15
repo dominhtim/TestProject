@@ -1,14 +1,14 @@
-# Spring Boot 4.0 CRUD Application with JDK 21
+# Spring Boot 4.1 CRUD Application with JDK 25
 
 This is a simple **To-Do Task CRUD (Create, Read, Update, Delete)**
-application built with **Spring Boot 4.0**, **Java 21**, **Spring Data
+application built with **Spring Boot 4.1**, **Java 25 (LTS)**, **Spring Data
 JPA**, and the **H2 in-memory database**.
 
 ------------------------------------------------------------------------
 
 ## Prerequisites
 
--   **JDK 21** (Set in `pom.xml`)
+-   **JDK 25** (Set in `pom.xml`)
 -   **Maven 3.8+**
 
 ------------------------------------------------------------------------
@@ -66,14 +66,26 @@ The H2 in-memory database console is available for easy viewing at:\
 
 ## Testing
 
-To run the unit and integration tests:
+Unit tests (`*Test.java`, fast, run via Surefire) and integration tests
+(`*IT.java`, boot the full app on a random port and hit it over real HTTP
+via Surefire/Failsafe) are kept separate:
 
+    # Unit tests only
     mvn test
+
+    # Unit tests + integration tests (also runs during CI)
+    mvn verify
 
 ------------------------------------------------------------------------
 
-## Continuous Integration
+## Continuous Integration & Security
 
-The `.github/workflows/ci.yml` file sets up a GitHub Actions workflow
-that automatically builds and tests the application using **JDK 21**
-every time code is pushed or a pull request is created.
+-   **`.github/workflows/ci.yml`** builds and runs the full test suite
+    (`mvn verify`) with **JDK 25** on every push to `main` and on every
+    pull request, then does a validation-only Docker build.
+-   **`.github/workflows/codeql.yml`** runs CodeQL static analysis on
+    every push/PR and weekly on a schedule.
+-   **Dependabot** (`.github/dependabot.yml`) opens weekly PRs for
+    outdated Maven dependencies, GitHub Actions, and the Docker base
+    image. See [`SECURITY.md`](SECURITY.md) for the vulnerability
+    reporting process.

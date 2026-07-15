@@ -1,35 +1,66 @@
-name: Java CI with Maven (Spring Boot 4.0 / JDK 21)
+name: CI
 
-# Triggers the workflow on push or pull request events on the main branch
+# Build on every PR (opened, synchronized, reopened) targeting main, and on
+# every push to main.
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+
 jobs:
-  build_and_test:
-    # Run on the latest Ubuntu environment
+  build-and-test:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write # required by the dependency-submission step below
     steps:
-      - name: Checkout Code
-        # Uses the standard action to clone your repository
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v6
 
-      - name: Set up JDK 21
-        # Uses the setup-java action to install the specific Java version
-        uses: actions/setup-java@v4
+      - name: Set up JDK 25 (Temurin)
+        uses: actions/setup-java@v5
         with:
-          java-version: '21'
+          java-version: '25'
           distribution: 'temurin'
-          cache: maven # Caches Maven dependencies for faster builds
+          cache: maven
 
-      - name: Build with Maven and Run Tests
-        # Execute the standard Maven clean install command
-        run: mvn -B clean install --file pom.xml
+      - name: Build, unit test, and integration test
+        # `verify` runs unit tests (surefire, *Test.java) followed by
+        # integration tests (failsafe, *IT.java) against the packaged app.
+        run: mvn -B clean verify --file pom.xml
 
-      - name: Display Build Success Message
-        # Simple step to confirm successful build and testing
-        if: success()
-        run: echo "✅ Build and Tests successful! Application is ready."
+      - name: Publish test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: |
+            target/surefire-reports/
+            target/failsafe-reports/
+          retention-days: 7
+
+      - name: Submit dependency graph
+        # Keeps Dependabot alerts accurate. Only needed on the default
+        # branch, not on every PR from a fork.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: advanced-security/maven-dependency-submission-action@v5
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build image (validation only, no push)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          tags: my-spring-app:ci

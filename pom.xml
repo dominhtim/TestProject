@@ -4,13 +4,10 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-
     <parent>
-        <!-- Reverted to 4.0.0 as requested. Warning: This is likely an unreleased
-             or snapshot version and may cause dependency resolution issues. -->
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.0</version>
+        <version>4.1.0</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
 
@@ -18,12 +15,12 @@
     <artifactId>my-spring-app</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>my-spring-app</name>
-    <description>Spring Boot 4.0 CRUD Demo with JDK 21 (LTS)</description>
+    <description>Spring Boot 4.1 CRUD Demo with JDK 21 (LTS)</description>
 
     <properties>
         <!-- Targeting the Long-Term Support (LTS) Java 21 -->
         <java.version>21</java.version>
-        <lombok.version>1.18.30</lombok.version>
+        <lombok.version>1.18.32</lombok.version>
     </properties>
 
     <dependencies>
@@ -70,8 +67,7 @@
         </dependency>
 
         <!-- FIX: Explicitly adding low-level test dependencies to ensure
-             @WebMvcTest, @MockBean, and AutoConfigureMockMvc are found,
-             mitigating issues with the 4.0.0 parent version's transitive resolution. -->
+             @WebMvcTest, @MockBean, and AutoConfigureMockMvc are found -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-test</artifactId>

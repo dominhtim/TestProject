@@ -152,10 +152,10 @@ comments.
     required to get coverage data in.
 3.  Generate a token under **My Account > Security**.
 4.  In the GitHub repo, under **Settings > Secrets and variables >
-    Actions**, add:
-    -   Secret `SONAR_TOKEN` - the token from step 3.
-    -   Variable `SONAR_ORGANIZATION` - your SonarQube Cloud organization key.
-    -   Variable `SONAR_PROJECT_KEY` - the project key assigned in step 1.
+    Actions > Secrets**, add:
+    -   `SONAR_TOKEN` - the token from step 3.
+    -   `SONAR_ORGANIZATION` - your SonarQube Cloud organization key.
+    -   `SONAR_PROJECT_KEY` - the project key assigned in step 1.
 
 Until these are configured, the `code-quality` job will fail (or can be
 disabled by removing it from `ci.yml`).

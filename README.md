@@ -53,6 +53,61 @@ All endpoints use the base URL:\
 
 ------------------------------------------------------------------------
 
+## API Documentation (Swagger / OpenAPI)
+
+Interactive API docs are available once the app is running:
+
+-   **Swagger UI:** http://localhost:8080/swagger-ui.html
+-   **OpenAPI spec (JSON):** http://localhost:8080/v3/api-docs
+
+> **Known issue:** `springdoc-openapi` 3.0.3 still generates its spec using
+> Jackson 2 internally even on Spring Boot 4/Jackson 3
+> ([tracked upstream](https://github.com/springdoc/springdoc-openapi/issues/3268)).
+> If these endpoints throw a Jackson-related error, that's why - check the
+> issue for the current status.
+
+------------------------------------------------------------------------
+
+## Observability
+
+The app is instrumented with Actuator, Micrometer, and OpenTelemetry.
+
+| What                | Where                                       |
+| ------------------- | -------------------------------------------- |
+| Health check         | http://localhost:8080/actuator/health        |
+| App info             | http://localhost:8080/actuator/info          |
+| Prometheus metrics   | http://localhost:8080/actuator/prometheus    |
+| Structured logs      | Console, JSON (ECS format)                   |
+| Distributed tracing  | Exported via OTLP to Jaeger                  |
+
+Only `health`, `info`, `prometheus`, and `metrics` are exposed
+(`management.endpoints.web.exposure.include` in `application.properties`) -
+this app has no Spring Security configured, so anything exposed here is
+reachable by anyone. See [`SECURITY.md`](SECURITY.md) for more on this.
+
+### Running the full observability stack locally
+
+```
+docker compose up --build
+```
+
+This builds the app image and starts it alongside Prometheus, Jaeger, and
+Grafana, all wired together:
+
+-   **App:** http://localhost:8080
+-   **Prometheus:** http://localhost:9090
+-   **Jaeger UI:** http://localhost:16686
+-   **Grafana:** http://localhost:3000 (login `admin` / `admin`, Prometheus
+    datasource is pre-provisioned)
+
+If you'd rather run the app directly (`mvn spring-boot:run`) and only the
+observability tools in Docker, start just those three services
+(`docker compose up prometheus jaeger grafana`) and change the target in
+[`observability/prometheus.yml`](observability/prometheus.yml) from
+`app:8080` to `host.docker.internal:8080`.
+
+------------------------------------------------------------------------
+
 ## Database Console
 
 The H2 in-memory database console is available for easy viewing at:\

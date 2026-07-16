@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: "my-spring-app"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      # "app" is the service name in docker-compose.yml, resolved via the
+      # compose network. If you run the app outside Docker (e.g. `mvn
+      # spring-boot:run`) instead of via `docker compose up`, change this to
+      # host.docker.internal:8080 so this container can reach your host.
+      - targets: ["app:8080"]

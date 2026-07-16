@@ -22,6 +22,10 @@
         <java.version>25</java.version>
         <lombok.version>1.18.46</lombok.version>
         <failsafe-surefire.version>3.5.6</failsafe-surefire.version>
+        <!-- springdoc is a third-party library, not covered by Spring Boot's
+             own dependency management, so its version is pinned explicitly. -->
+        <springdoc.version>3.0.3</springdoc.version>
+
     </properties>
 
     <dependencies>
@@ -78,6 +82,81 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- ===================== Observability ===================== -->
+
+        <!-- Actuator: health/info/metrics endpoints. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Explicit health module. Spring Boot's default web security filter
+             chain had a critical bypass (CVE-2026-40976, fixed in 4.0.6) that
+             specifically affected apps depending on the actuator without
+             depending on spring-boot-health. We're on a patched version
+             (4.1.0), but declaring this explicitly is the official
+             defense-in-depth recommendation and costs nothing. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-health</artifactId>
+        </dependency>
+
+        <!-- Micrometer + Prometheus: having this registry on the classpath is
+             enough for Spring Boot to auto-configure it and expose
+             /actuator/prometheus (once listed in the exposure include below). -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
+        <!-- Distributed tracing: bridges Micrometer's Observation API to
+             OpenTelemetry, and exports spans via OTLP (to Jaeger locally).
+             Boot 4.1 has a new spring-boot-starter-opentelemetry that bundles
+             all of this, but as of this writing it's only published as
+             milestone/RC builds for the 4.1.0 line (no 4.1.0 final release
+             on Maven Central), so its constituent modules are declared
+             directly instead - inspected from the starter's own POM to
+             match exactly what it would pull in, at the same
+             dependency-managed versions. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-micrometer-metrics</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-micrometer-tracing-opentelemetry</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-opentelemetry</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-otel</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
+        </dependency>
+
+        <!-- ===================== API Documentation ===================== -->
+
+        <!-- Swagger UI / OpenAPI 3 spec generation, served at /swagger-ui.html
+             and /v3/api-docs. Pinned explicitly (springdoc.version property)
+             since it's not part of Spring's own dependency management.
+             Note: springdoc 3.0.3 was built/tested against Boot 4.0.5;
+             springdoc still generates its spec using Jackson 2 internally
+             even on Boot 4 (tracked upstream:
+             https://github.com/springdoc/springdoc-openapi/issues/3268),
+             which is why jackson-databind below is on the main classpath,
+             not just test. If /swagger-ui.html or /v3/api-docs throws a
+             Jackson-related error, that upstream issue is why. -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
+        </dependency>
+
         <!-- Testing: Spring Boot 4 ships a dedicated *-test starter per
              production starter instead of one catch-all spring-boot-starter-test.
              Each of these brings spring-boot-starter-test (JUnit 5, Mockito,
@@ -125,16 +204,17 @@
         </dependency>
 
         <!-- Spring Boot 4's auto-configured JSON mapper is Jackson 3
-             (tools.jackson.databind.json.JsonMapper). TaskControllerUnitTest
-             builds request bodies with the classic Jackson 2 ObjectMapper
-             (com.fasterxml.jackson.databind.ObjectMapper) as a plain,
-             non-Spring-managed utility, which needs the Jackson 2 databind
-             jar explicitly since spring-boot-starter-jackson only brings
-             Jackson 3 plus the shared jackson-annotations module. -->
+             (tools.jackson.databind.json.JsonMapper). This Jackson 2
+             databind jar is on the main (not test) classpath for two
+             reasons: TaskControllerUnitTest builds request bodies with the
+             classic Jackson 2 ObjectMapper as a plain, non-Spring-managed
+             utility, and springdoc-openapi (above) still uses Jackson 2
+             internally to generate the OpenAPI spec even under Boot 4/Jackson
+             3. spring-boot-starter-jackson only brings Jackson 3 plus the
+             shared jackson-annotations module, not this. -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <scope>test</scope>
         </dependency>
     </dependencies>
 
@@ -153,6 +233,11 @@
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
+                    <!-- Keep method parameter names in bytecode. springdoc-openapi
+                         needs this to resolve parameter names in the generated
+                         API docs (see springdoc FAQ); it's also just generally
+                         useful for reflection-based frameworks. -->
+                    <parameters>true</parameters>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>

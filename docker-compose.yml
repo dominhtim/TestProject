@@ -1,0 +1,56 @@
+# Local observability stack: run the app plus Prometheus (metrics), Jaeger
+# (traces), and Grafana (dashboards) together.
+#
+#   docker compose up --build
+#
+# Then visit:
+#   App:        http://localhost:8080
+#   Swagger UI: http://localhost:8080/swagger-ui.html
+#   Prometheus: http://localhost:9090
+#   Jaeger UI:  http://localhost:16686
+#   Grafana:    http://localhost:3000  (login: admin / admin)
+
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      # Send traces to the Jaeger container by its service name (reachable
+      # over the default compose network), rather than the localhost
+      # default in application.properties (which assumes you're running
+      # the app directly on your host while this stack runs in Docker).
+      - MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
+    depends_on:
+      - jaeger
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.76.0
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686" # Jaeger UI
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+
+  prometheus:
+    image: prom/prometheus:v3.9.0
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - app
+
+  grafana:
+    image: grafana/grafana:12.3.0
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus

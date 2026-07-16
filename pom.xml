@@ -21,10 +21,11 @@
         <!-- Targeting the current Long-Term Support (LTS) release, Java 25 -->
         <java.version>25</java.version>
         <lombok.version>1.18.46</lombok.version>
-        <failsafe-surefire.version>3.5.3</failsafe-surefire.version>
+        <failsafe-surefire.version>3.5.6</failsafe-surefire.version>
         <!-- springdoc is a third-party library, not covered by Spring Boot's
              own dependency management, so its version is pinned explicitly. -->
         <springdoc.version>3.0.3</springdoc.version>
+
     </properties>
 
     <dependencies>

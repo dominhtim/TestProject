@@ -8,13 +8,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.client.RestTestClient;
+
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * True end-to-end integration test for the Task API.
- *
+ * <p>
  * Unlike {@code com.example.controller.TaskControllerUnitTest} (mocked
  * repository, no Spring context) this test boots the full Spring Boot
  * application on a random port and exercises it over real HTTP using
@@ -22,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * replacement for {@code TestRestTemplate} — verifying the entire stack:
  * embedded servlet container, JSON serialization, bean validation, and the
  * real H2-backed repository.
- *
+ * <p>
  * Lives under {@code com.example.integration} (separate from the
  * controller-level unit tests) and is named with the {@code IT} suffix so
  * maven-failsafe-plugin picks it up during {@code mvn verify}, keeping it
@@ -114,5 +117,26 @@ class TaskApiIT {
         restClient.get().uri(API_V1_TASKS + "/{id}", 999_999L)
                 .exchange()
                 .expectStatus().isNotFound();
+    }
+
+    @Test
+    void shouldCreateTaskFromMinimalJsonMissingOptionalFields() {
+        // Regression test: the API's documented request shape only requires
+        // "title" (see README). Jackson must not require "completed" or "id"
+        // to be present just because Task also has an all-args constructor.
+        Map<String, Object> minimalPayload = Map.of("title", "Buy groceries");
+
+        Task created = restClient.post().uri(API_V1_TASKS)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(minimalPayload)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(Task.class)
+                .returnResult()
+                .getResponseBody();
+
+        assertThat(created).isNotNull();
+        assertThat(created.getTitle()).isEqualTo("Buy groceries");
+        assertThat(created.isCompleted()).isFalse();
     }
 }

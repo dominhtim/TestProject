@@ -64,3 +64,6 @@ jobs:
           context: .
           push: false
           tags: my-spring-app:ci
+
+      - name: Validate docker-compose.yml
+        run: docker compose config --quiet

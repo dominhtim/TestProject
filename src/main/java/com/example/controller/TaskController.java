@@ -1,5 +1,6 @@
 package com.example.controller;
 
+import com.example.dto.TaskDto;
 import com.example.model.Task;
 import com.example.repository.TaskRepository;
 import jakarta.validation.Valid;
@@ -12,6 +13,10 @@ import java.util.Optional;
 /**
  * REST Controller for Task CRUD operations.
  * Base mapping is set to /api/v1/tasks.
+ *
+ * Speaks {@link TaskDto} over the wire, never the {@link Task} JPA entity
+ * directly (see TaskDto's javadoc for why), mapping to/from the entity
+ * internally.
  */
 @RestController
 @RequestMapping("/api/v1/tasks")
@@ -25,37 +30,44 @@ public class TaskController {
     }
 
     @PostMapping
-    public ResponseEntity<Task> createTask(@Valid @RequestBody Task task) {
-        // Validation is triggered by @Valid
-        Task savedTask = taskRepository.save(task);
-        return ResponseEntity.ok(savedTask);
+    public ResponseEntity<TaskDto> createTask(@Valid @RequestBody TaskDto request) {
+        // Validation is triggered by @Valid. Ignore any client-supplied id -
+        // creation always produces a new row with a generated id.
+        Task newTask = new Task();
+        newTask.setTitle(request.getTitle());
+        newTask.setCompleted(request.isCompleted());
+
+        Task savedTask = taskRepository.save(newTask);
+        return ResponseEntity.ok(toDto(savedTask));
     }
 
     @GetMapping
-    public List<Task> getAllTasks() {
-        return taskRepository.findAll();
+    public List<TaskDto> getAllTasks() {
+        return taskRepository.findAll().stream()
+                .map(TaskController::toDto)
+                .toList();
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Task> getTaskById(@PathVariable Long id) {
+    public ResponseEntity<TaskDto> getTaskById(@PathVariable Long id) {
         Optional<Task> task = taskRepository.findById(id);
 
         // Return 404 if the task is not found
-        return task.map(ResponseEntity::ok)
+        return task.map(t -> ResponseEntity.ok(toDto(t)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Task> updateTask(@PathVariable Long id, @Valid @RequestBody Task taskDetails) {
+    public ResponseEntity<TaskDto> updateTask(@PathVariable Long id, @Valid @RequestBody TaskDto request) {
         return taskRepository.findById(id)
                 .map(existingTask -> {
                     // Update fields
-                    existingTask.setTitle(taskDetails.getTitle());
-                    existingTask.setCompleted(taskDetails.isCompleted());
+                    existingTask.setTitle(request.getTitle());
+                    existingTask.setCompleted(request.isCompleted());
 
                     // Save and return the updated task
                     Task updatedTask = taskRepository.save(existingTask);
-                    return ResponseEntity.ok(updatedTask);
+                    return ResponseEntity.ok(toDto(updatedTask));
                 })
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
@@ -69,5 +81,9 @@ public class TaskController {
                     return ResponseEntity.noContent().<Void>build();
                 })
                 .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    private static TaskDto toDto(Task task) {
+        return new TaskDto(task.getId(), task.getTitle(), task.isCompleted());
     }
 }

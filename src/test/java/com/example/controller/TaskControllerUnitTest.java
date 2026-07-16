@@ -1,5 +1,6 @@
 package com.example.controller;
 
+import com.example.dto.TaskDto;
 import com.example.model.Task;
 import com.example.repository.TaskRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,6 +25,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Unit Test for the TaskController.
  * Uses @WebMvcTest to load only the controller and mock its dependencies (TaskRepository),
  * making these tests fast and isolated. This ensures 100% coverage of the controller logic.
+ *
+ * The controller's wire format is {@link TaskDto} (see TaskController/TaskDto
+ * javadoc), while the mocked TaskRepository still deals in the {@link Task}
+ * entity - these tests build both: TaskDto for request bodies, Task entities
+ * for repository mock behavior.
  */
 @WebMvcTest(TaskController.class)
 class TaskControllerUnitTest {
@@ -44,19 +50,21 @@ class TaskControllerUnitTest {
     @MockitoBean
     private TaskRepository taskRepository;
 
-    // Test data
+    // Entities returned by the mocked repository
     private final Task task1 = new Task(1L, "Unit Test Task 1", false);
     private final Task task2 = new Task(2L, "Unit Test Task 2", true);
 
     @Test
     void shouldCreateTask() throws Exception {
-        // Given: Mock the save operation to return the provided task (with an ID)
+        // Given: Mock the save operation to return the persisted entity (with an ID)
         when(taskRepository.save(any(Task.class))).thenReturn(task1);
+
+        TaskDto request = new TaskDto(null, "Unit Test Task 1", false);
 
         // When/Then: Perform POST request
         mockMvc.perform(post(API_V1_TASKS)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(task1)))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id", is(1)))
                 .andExpect(jsonPath("$.title", is("Unit Test Task 1")));
@@ -67,13 +75,13 @@ class TaskControllerUnitTest {
 
     @Test
     void shouldReturnBadRequestOnCreateIfTitleIsMissing() throws Exception {
-        // Task with missing (blank) title should fail validation
-        Task invalidTask = new Task(null, " ", false);
+        // Request with missing (blank) title should fail validation
+        TaskDto invalidRequest = new TaskDto(null, " ", false);
 
         // When/Then: Perform POST request
         mockMvc.perform(post(API_V1_TASKS)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(invalidTask)))
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
                 .andExpect(status().isBadRequest()); // Expect 400 Bad Request
 
         // Verify that the repository save method was never called
@@ -83,7 +91,7 @@ class TaskControllerUnitTest {
 
     @Test
     void shouldGetAllTasks() throws Exception {
-        // Given: Mock findAll to return a list of tasks
+        // Given: Mock findAll to return a list of entities
         when(taskRepository.findAll()).thenReturn(Arrays.asList(task1, task2));
 
         // When/Then: Perform GET request
@@ -98,7 +106,7 @@ class TaskControllerUnitTest {
 
     @Test
     void shouldGetTaskById() throws Exception {
-        // Given: Mock findById to return the task
+        // Given: Mock findById to return the entity
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task1));
 
         // When/Then: Perform GET request
@@ -126,16 +134,18 @@ class TaskControllerUnitTest {
 
     @Test
     void shouldUpdateTask() throws Exception {
-        // Mock data for the update
-        Task updatedDetails = new Task(1L, "Updated Title", true);
+        // Request body for the update
+        TaskDto updateRequest = new TaskDto(1L, "Updated Title", true);
+        // Entity the repository returns after save
+        Task updatedEntity = new Task(1L, "Updated Title", true);
 
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task1));
-        when(taskRepository.save(any(Task.class))).thenReturn(updatedDetails);
+        when(taskRepository.save(any(Task.class))).thenReturn(updatedEntity);
 
         // When/Then: Perform PUT request
         mockMvc.perform(put(API_V1_TASKS + "/{id}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updatedDetails)))
+                        .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title", is("Updated Title")))
                 .andExpect(jsonPath("$.completed", is(true)));
@@ -147,15 +157,15 @@ class TaskControllerUnitTest {
 
     @Test
     void shouldReturn404OnUpdateIfTaskNotFound() throws Exception {
-        // Mock data for the update
-        Task updatedDetails = new Task(999L, "Non-existent", true);
+        // Request body for the update
+        TaskDto updateRequest = new TaskDto(999L, "Non-existent", true);
 
         when(taskRepository.findById(999L)).thenReturn(Optional.empty());
 
         // When/Then: Perform PUT request
         mockMvc.perform(put(API_V1_TASKS + "/{id}", 999L)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updatedDetails)))
+                        .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isNotFound());
 
         // Verify only findById was called

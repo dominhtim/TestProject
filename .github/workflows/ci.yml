@@ -84,14 +84,23 @@ jobs:
         # sonarcloud.io). None of these are printed in logs even though
         # org/project key aren't strictly sensitive - secrets are just where
         # they're already set up.
+        #
+        # Secrets are passed via `env` rather than expanded directly into the
+        # `run` script (SonarQube rule: avoid expanding secrets in a run
+        # block) - GitHub Actions substitutes ${{ secrets.* }} into the raw
+        # command text before the shell ever sees it, which is more exposed
+        # than an env var the shell resolves itself.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # enables PR decoration
+          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: >
           mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
           -Dsonar.host.url=https://sonarcloud.io
-          -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
-          -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
-          -Dsonar.token=${{ secrets.SONAR_TOKEN }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # enables PR decoration
+          -Dsonar.organization="$SONAR_ORGANIZATION"
+          -Dsonar.projectKey="$SONAR_PROJECT_KEY"
+          -Dsonar.token="$SONAR_TOKEN"
 
   docker-build:
     runs-on: ubuntu-latest

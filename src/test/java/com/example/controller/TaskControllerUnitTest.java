@@ -81,7 +81,6 @@ class TaskControllerUnitTest {
     }
 
 
-
     @Test
     void shouldGetAllTasks() throws Exception {
         // Given: Mock findAll to return a list of tasks

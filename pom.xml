@@ -31,8 +31,15 @@
         <jacoco.version>0.8.15</jacoco.version>
         <sonar-maven-plugin.version>5.7.0.6970</sonar-maven-plugin.version>
         <!-- Where JaCoCo's coverage.xml goes, and where the Sonar scanner is
-             told to look for it (see jacoco:report + sonar.coverage.jacoco.xmlReportPaths below). -->
-        <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+             told to look for it (see jacoco-maven-plugin executions below).
+             Two separate reports feed in: unit tests (surefire) write
+             target/site/jacoco/jacoco.xml via the `report` goal, integration
+             tests (failsafe) write target/site/jacoco-it/jacoco.xml via the
+             `report-integration` goal. Sonar accepts a comma-separated list
+             and merges them - omitting either would understate coverage,
+             since a lot of this app's coverage comes from TaskApiIT
+             exercising the full HTTP stack, not just the unit tests. -->
+        <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml,${project.build.directory}/site/jacoco-it/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
 
     </properties>
 

@@ -24,7 +24,6 @@ public class TaskController {
         this.taskRepository = taskRepository;
     }
 
-    // 1. CREATE: POST /api/v1/tasks
     @PostMapping
     public ResponseEntity<Task> createTask(@Valid @RequestBody Task task) {
         // Validation is triggered by @Valid
@@ -32,13 +31,11 @@ public class TaskController {
         return ResponseEntity.ok(savedTask);
     }
 
-    // 2. READ ALL: GET /api/v1/tasks
     @GetMapping
     public List<Task> getAllTasks() {
         return taskRepository.findAll();
     }
 
-    // 3. READ ONE: GET /api/v1/tasks/{id}
     @GetMapping("/{id}")
     public ResponseEntity<Task> getTaskById(@PathVariable Long id) {
         Optional<Task> task = taskRepository.findById(id);
@@ -48,7 +45,6 @@ public class TaskController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    // 4. UPDATE: PUT /api/v1/tasks/{id}
     @PutMapping("/{id}")
     public ResponseEntity<Task> updateTask(@PathVariable Long id, @Valid @RequestBody Task taskDetails) {
         return taskRepository.findById(id)
@@ -64,7 +60,6 @@ public class TaskController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    // 5. DELETE: DELETE /api/v1/tasks/{id}
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteTask(@PathVariable Long id) {
         return taskRepository.findById(id)

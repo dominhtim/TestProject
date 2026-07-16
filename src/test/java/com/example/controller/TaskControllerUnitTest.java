@@ -48,8 +48,6 @@ class TaskControllerUnitTest {
     private final Task task1 = new Task(1L, "Unit Test Task 1", false);
     private final Task task2 = new Task(2L, "Unit Test Task 2", true);
 
-    // --- CREATE TESTS (POST) ---
-
     @Test
     void shouldCreateTask() throws Exception {
         // Given: Mock the save operation to return the provided task (with an ID)
@@ -82,7 +80,7 @@ class TaskControllerUnitTest {
         verify(taskRepository, never()).save(any(Task.class));
     }
 
-    // --- READ ALL TESTS (GET /) ---
+
 
     @Test
     void shouldGetAllTasks() throws Exception {
@@ -98,8 +96,6 @@ class TaskControllerUnitTest {
         // Verify findAll was called
         verify(taskRepository, times(1)).findAll();
     }
-
-    // --- READ ONE TESTS (GET /id) ---
 
     @Test
     void shouldGetTaskById() throws Exception {
@@ -129,16 +125,12 @@ class TaskControllerUnitTest {
         verify(taskRepository, times(1)).findById(999L);
     }
 
-    // --- UPDATE TESTS (PUT) ---
-
     @Test
     void shouldUpdateTask() throws Exception {
         // Mock data for the update
         Task updatedDetails = new Task(1L, "Updated Title", true);
 
-        // 1. Mock findById (The task exists)
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task1));
-        // 2. Mock save (The task is updated and saved)
         when(taskRepository.save(any(Task.class))).thenReturn(updatedDetails);
 
         // When/Then: Perform PUT request
@@ -159,7 +151,6 @@ class TaskControllerUnitTest {
         // Mock data for the update
         Task updatedDetails = new Task(999L, "Non-existent", true);
 
-        // 1. Mock findById (The task is not found)
         when(taskRepository.findById(999L)).thenReturn(Optional.empty());
 
         // When/Then: Perform PUT request
@@ -173,13 +164,9 @@ class TaskControllerUnitTest {
         verify(taskRepository, never()).save(any(Task.class));
     }
 
-    // --- DELETE TESTS (DELETE) ---
-
     @Test
     void shouldDeleteTask() throws Exception {
-        // 1. Mock findById (The task exists)
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task1));
-        // 2. Mock the delete operation (void method)
         doNothing().when(taskRepository).delete(any(Task.class));
 
         // When/Then: Perform DELETE request

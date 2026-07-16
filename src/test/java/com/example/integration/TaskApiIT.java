@@ -1,6 +1,6 @@
 package com.example.integration;
 
-import com.example.model.Task;
+import com.example.dto.TaskDto;
 import com.example.repository.TaskRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,6 +25,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * replacement for {@code TestRestTemplate} — verifying the entire stack:
  * embedded servlet container, JSON serialization, bean validation, and the
  * real H2-backed repository.
+ * <p>
+ * The API's wire format is {@link TaskDto}, not the JPA entity (see
+ * TaskController/TaskDto javadoc for why) - this test talks TaskDto over
+ * HTTP, while still reaching into TaskRepository directly for setup/teardown
+ * since that's entity-based and orthogonal to the REST contract.
  * <p>
  * Lives under {@code com.example.integration} (separate from the
  * controller-level unit tests) and is named with the {@code IT} suffix so
@@ -51,12 +56,12 @@ class TaskApiIT {
     @Test
     void shouldSupportFullCrudLifecycleOverRealHttp() {
         // CREATE
-        Task newTask = new Task(null, "Ship the release", false);
-        Task created = restClient.post().uri(API_V1_TASKS)
+        TaskDto newTask = new TaskDto(null, "Ship the release", false);
+        TaskDto created = restClient.post().uri(API_V1_TASKS)
                 .body(newTask)
                 .exchange()
                 .expectStatus().isOk()
-                .expectBody(Task.class)
+                .expectBody(TaskDto.class)
                 .returnResult()
                 .getResponseBody();
 
@@ -80,12 +85,12 @@ class TaskApiIT {
                 .jsonPath("$.title").isEqualTo("Ship the release");
 
         // UPDATE
-        Task updateDetails = new Task(id, "Ship the release (done)", true);
-        Task updated = restClient.put().uri(API_V1_TASKS + "/{id}", id)
+        TaskDto updateDetails = new TaskDto(id, "Ship the release (done)", true);
+        TaskDto updated = restClient.put().uri(API_V1_TASKS + "/{id}", id)
                 .body(updateDetails)
                 .exchange()
                 .expectStatus().isOk()
-                .expectBody(Task.class)
+                .expectBody(TaskDto.class)
                 .returnResult()
                 .getResponseBody();
 
@@ -104,7 +109,7 @@ class TaskApiIT {
 
     @Test
     void shouldRejectInvalidTaskWithBadRequest() {
-        Task blankTitleTask = new Task(null, "  ", false);
+        TaskDto blankTitleTask = new TaskDto(null, "  ", false);
 
         restClient.post().uri(API_V1_TASKS)
                 .body(blankTitleTask)
@@ -123,15 +128,15 @@ class TaskApiIT {
     void shouldCreateTaskFromMinimalJsonMissingOptionalFields() {
         // Regression test: the API's documented request shape only requires
         // "title" (see README). Jackson must not require "completed" or "id"
-        // to be present just because Task also has an all-args constructor.
+        // to be present just because TaskDto also has an all-args constructor.
         Map<String, Object> minimalPayload = Map.of("title", "Buy groceries");
 
-        Task created = restClient.post().uri(API_V1_TASKS)
+        TaskDto created = restClient.post().uri(API_V1_TASKS)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(minimalPayload)
                 .exchange()
                 .expectStatus().isOk()
-                .expectBody(Task.class)
+                .expectBody(TaskDto.class)
                 .returnResult()
                 .getResponseBody();
 

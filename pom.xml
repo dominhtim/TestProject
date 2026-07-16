@@ -25,6 +25,21 @@
         <!-- springdoc is a third-party library, not covered by Spring Boot's
              own dependency management, so its version is pinned explicitly. -->
         <springdoc.version>3.0.3</springdoc.version>
+        <!-- Code quality: coverage measurement + SonarQube Cloud scanner.
+             Neither is covered by the parent BOM, so both are pinned here,
+             verified directly against Maven Central. -->
+        <jacoco.version>0.8.15</jacoco.version>
+        <sonar-maven-plugin.version>5.7.0.6970</sonar-maven-plugin.version>
+        <!-- Where JaCoCo's coverage.xml goes, and where the Sonar scanner is
+             told to look for it (see jacoco-maven-plugin executions below).
+             Two separate reports feed in: unit tests (surefire) write
+             target/site/jacoco/jacoco.xml via the `report` goal, integration
+             tests (failsafe) write target/site/jacoco-it/jacoco.xml via the
+             `report-integration` goal. Sonar accepts a comma-separated list
+             and merges them - omitting either would understate coverage,
+             since a lot of this app's coverage comes from TaskApiIT
+             exercising the full HTTP stack, not just the unit tests. -->
+        <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml,${project.build.directory}/site/jacoco-it/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
 
     </properties>
 
@@ -270,6 +285,55 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+
+            <!-- JaCoCo: instruments both unit tests (surefire) and integration
+                 tests (failsafe) and merges their coverage into one report at
+                 target/site/jacoco/jacoco.xml, which SonarQube Cloud reads via
+                 sonar.coverage.jacoco.xmlReportPaths (see properties above). -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <!-- Attaches the coverage agent before surefire (unit tests) runs -->
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <!-- Attaches a second agent, writing to a separate data file,
+                         before failsafe (integration tests) runs -->
+                    <execution>
+                        <id>prepare-agent-integration</id>
+                        <goals>
+                            <goal>prepare-agent-integration</goal>
+                        </goals>
+                    </execution>
+                    <!-- Generates the merged XML report during `mvn verify`, after
+                         both unit and integration tests have run -->
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                            <goal>report-integration</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- SonarQube Cloud scanner. Not bound to any lifecycle phase -
+                 invoked explicitly via `mvn sonar:sonar` (see .github/workflows/ci.yml),
+                 after `verify` has produced the JaCoCo report above. Declared here
+                 purely to pin its version; project key/organization/token are
+                 passed as -D flags in CI rather than hardcoded, since they're
+                 SonarQube-Cloud-account-specific and not needed for a normal build. -->
+            <plugin>
+                <groupId>org.sonarsource.scanner.maven</groupId>
+                <artifactId>sonar-maven-plugin</artifactId>
+                <version>${sonar-maven-plugin.version}</version>
             </plugin>
         </plugins>
     </build>

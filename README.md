@@ -133,11 +133,45 @@ via Surefire/Failsafe) are kept separate:
 
 ------------------------------------------------------------------------
 
+## Code Quality (SonarQube Cloud)
+
+Every push/PR to `main` runs a `code-quality` job (`.github/workflows/ci.yml`)
+that scans the codebase with [SonarQube Cloud](https://sonarcloud.io) for
+bugs, vulnerabilities, code smells, and duplication, and reports test
+coverage (via the JaCoCo report `pom.xml` now generates during `mvn verify`).
+Results show up as a commit status check and, on PRs, as inline review
+comments.
+
+**One-time setup** (only needs to be done once per repo, by a repo admin):
+
+1.  Sign up at [sonarcloud.io](https://sonarcloud.io) (free for this
+    project's size - up to 50k lines of code on the free tier) and import
+    this GitHub repository as a new project.
+2.  Under **Administration > Analysis Method**, turn off *Automatic
+    Analysis* - the CI workflow does CI-based analysis instead, which is
+    required to get coverage data in.
+3.  Generate a token under **My Account > Security**.
+4.  In the GitHub repo, under **Settings > Secrets and variables >
+    Actions > Secrets**, add:
+    -   `SONAR_TOKEN` - the token from step 3.
+    -   `SONAR_ORGANIZATION` - your SonarQube Cloud organization key.
+    -   `SONAR_PROJECT_KEY` - the project key assigned in step 1.
+
+Until these are configured, the `code-quality` job will fail (or can be
+disabled by removing it from `ci.yml`).
+
+To run the same scan locally: `mvn verify sonar:sonar
+-Dsonar.host.url=https://sonarcloud.io -Dsonar.organization=<org>
+-Dsonar.projectKey=<key> -Dsonar.token=<your personal token>`.
+
+------------------------------------------------------------------------
+
 ## Continuous Integration & Security
 
 -   **`.github/workflows/ci.yml`** builds and runs the full test suite
     (`mvn verify`) with **JDK 25** on every push to `main` and on every
-    pull request, then does a validation-only Docker build.
+    pull request, then does a validation-only Docker build, then runs the
+    SonarQube Cloud scan described above.
 -   **`.github/workflows/codeql.yml`** runs CodeQL static analysis on
     every push/PR and weekly on a schedule.
 -   **Dependabot** (`.github/dependabot.yml`) opens weekly PRs for

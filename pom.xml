@@ -40,6 +40,12 @@
              since a lot of this app's coverage comes from TaskApiIT
              exercising the full HTTP stack, not just the unit tests. -->
         <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml,${project.build.directory}/site/jacoco-it/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+        <!-- Mirrors the JaCoCo <excludes> below: keeps the trivial Spring
+             Boot launcher class out of Sonar's coverage % too, for the same
+             reason (see jacoco-maven-plugin comment). This only affects
+             coverage accounting - Sonar still analyzes the class for bugs
+             and code smells. -->
+        <sonar.coverage.exclusions>**/MySpringAppApplication.java</sonar.coverage.exclusions>
 
     </properties>
 
@@ -295,6 +301,21 @@
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>${jacoco.version}</version>
+                <configuration>
+                    <!-- Exclude the Spring Boot launcher class: its main()
+                         is a single SpringApplication.run() call that adds
+                         no testable behavior of its own, and every
+                         @SpringBootTest (see TaskApiIT) already boots the
+                         full context and proves the wiring works. Testing
+                         main() itself would just re-boot the app a second
+                         time for no additional signal. Keeps this class out
+                         of both the local JaCoCo report and SonarQube's
+                         coverage % (see sonar.coverage.exclusions below, so
+                         both stay consistent). -->
+                    <excludes>
+                        <exclude>**/MySpringAppApplication.class</exclude>
+                    </excludes>
+                </configuration>
                 <executions>
                     <!-- Attaches the coverage agent before surefire (unit tests) runs -->
                     <execution>

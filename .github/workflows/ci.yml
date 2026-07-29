@@ -1,7 +1,5 @@
 name: CI
 
-# Build on every PR (opened, synchronized, reopened) targeting main, and on
-# every push to main.
 on:
   push:
     branches: [ main ]
@@ -28,8 +26,6 @@ jobs:
           cache: maven
 
       - name: Build, unit test, and integration test
-        # `verify` runs unit tests (surefire, *Test.java) followed by
-        # integration tests (failsafe, *IT.java) against the packaged app.
         run: mvn -B clean verify --file pom.xml
 
       - name: Publish test reports
@@ -76,20 +72,12 @@ jobs:
           key: ${{ runner.os }}-sonar
 
       - name: Build, test, and scan with SonarQube Cloud
-        # `verify` produces the JaCoCo coverage report (see pom.xml), then
-        # `sonar:sonar` uploads it alongside static analysis. Requires three
-        # repo-level secrets set once in GitHub (Settings > Secrets and
-        # variables > Actions > Secrets): SONAR_TOKEN, SONAR_ORGANIZATION,
-        # SONAR_PROJECT_KEY (all three come from the project you create at
-        # sonarcloud.io). None of these are printed in logs even though
-        # org/project key aren't strictly sensitive - secrets are just where
-        # they're already set up.
-        #
-        # Secrets are passed via `env` rather than expanded directly into the
-        # `run` script (SonarQube rule: avoid expanding secrets in a run
-        # block) - GitHub Actions substitutes ${{ secrets.* }} into the raw
-        # command text before the shell ever sees it, which is more exposed
-        # than an env var the shell resolves itself.
+        # Requires SONAR_TOKEN, SONAR_ORGANIZATION, SONAR_PROJECT_KEY as repo
+        # secrets (from the project at sonarcloud.io). Passed via `env`
+        # rather than expanded directly into `run` per SonarQube's own rule
+        # against expanding secrets in a run block - GitHub Actions
+        # substitutes ${{ secrets.* }} into the raw command text before the
+        # shell sees it, which is more exposed than an env var.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # enables PR decoration
           SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}

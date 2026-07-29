@@ -16,25 +16,14 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * True end-to-end integration test for the Task API.
+ * End-to-end test for the Task API: boots the full Spring Boot app on a
+ * random port and exercises it over real HTTP via {@link RestTestClient}
+ * (the Spring Boot 4 / Spring Framework 7 replacement for
+ * {@code TestRestTemplate}), unlike the mocked-repository
+ * {@code TaskControllerUnitTest}.
  * <p>
- * Unlike {@code com.example.controller.TaskControllerUnitTest} (mocked
- * repository, no Spring context) this test boots the full Spring Boot
- * application on a random port and exercises it over real HTTP using
- * {@link RestTestClient} — the Spring Boot 4 / Spring Framework 7
- * replacement for {@code TestRestTemplate} — verifying the entire stack:
- * embedded servlet container, JSON serialization, bean validation, and the
- * real H2-backed repository.
- * <p>
- * The API's wire format is {@link TaskDto}, not the JPA entity (see
- * TaskController/TaskDto javadoc for why) - this test talks TaskDto over
- * HTTP, while still reaching into TaskRepository directly for setup/teardown
- * since that's entity-based and orthogonal to the REST contract.
- * <p>
- * Lives under {@code com.example.integration} (separate from the
- * controller-level unit tests) and is named with the {@code IT} suffix so
- * maven-failsafe-plugin picks it up during {@code mvn verify}, keeping it
- * out of the fast {@code mvn test} unit-test run.
+ * Named with the {@code IT} suffix so maven-failsafe-plugin picks it up
+ * during {@code mvn verify}, separate from the fast {@code mvn test} run.
  */
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @AutoConfigureRestTestClient
@@ -55,8 +44,7 @@ class TaskApiIT {
 
     @Test
     void shouldSupportFullCrudLifecycleOverRealHttp() {
-        // CREATE
-        TaskDto newTask = new TaskDto(null, "Ship the release", false);
+        TaskDto newTask = TaskDto.builder().title("Ship the release").completed(false).build();
         TaskDto created = restClient.post().uri(API_V1_TASKS)
                 .body(newTask)
                 .exchange()
@@ -70,22 +58,19 @@ class TaskApiIT {
         assertThat(id).isNotNull();
         assertThat(created.getTitle()).isEqualTo("Ship the release");
 
-        // READ ALL
         restClient.get().uri(API_V1_TASKS)
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.length()").isEqualTo(1);
 
-        // READ ONE
         restClient.get().uri(API_V1_TASKS + "/{id}", id)
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.title").isEqualTo("Ship the release");
 
-        // UPDATE
-        TaskDto updateDetails = new TaskDto(id, "Ship the release (done)", true);
+        TaskDto updateDetails = TaskDto.builder().id(id).title("Ship the release (done)").completed(true).build();
         TaskDto updated = restClient.put().uri(API_V1_TASKS + "/{id}", id)
                 .body(updateDetails)
                 .exchange()
@@ -97,7 +82,6 @@ class TaskApiIT {
         assertThat(updated).isNotNull();
         assertThat(updated.isCompleted()).isTrue();
 
-        // DELETE
         restClient.delete().uri(API_V1_TASKS + "/{id}", id)
                 .exchange()
                 .expectStatus().isNoContent();
@@ -109,7 +93,7 @@ class TaskApiIT {
 
     @Test
     void shouldRejectInvalidTaskWithBadRequest() {
-        TaskDto blankTitleTask = new TaskDto(null, "  ", false);
+        TaskDto blankTitleTask = TaskDto.builder().title("  ").completed(false).build();
 
         restClient.post().uri(API_V1_TASKS)
                 .body(blankTitleTask)
@@ -126,9 +110,8 @@ class TaskApiIT {
 
     @Test
     void shouldCreateTaskFromMinimalJsonMissingOptionalFields() {
-        // Regression test: the API's documented request shape only requires
-        // "title" (see README). Jackson must not require "completed" or "id"
-        // to be present just because TaskDto also has an all-args constructor.
+        // Regression test: Jackson must not require "completed"/"id" just
+        // because TaskDto also has an all-args constructor (see TaskDto).
         Map<String, Object> minimalPayload = Map.of("title", "Buy groceries");
 
         TaskDto created = restClient.post().uri(API_V1_TASKS)

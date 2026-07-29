@@ -18,42 +18,53 @@
     <description>Spring Boot 4.1 CRUD Demo with JDK 25 (LTS)</description>
 
     <properties>
-        <!-- Targeting the current Long-Term Support (LTS) release, Java 25 -->
         <java.version>25</java.version>
         <lombok.version>1.18.46</lombok.version>
         <failsafe-surefire.version>3.5.6</failsafe-surefire.version>
-        <!-- springdoc is a third-party library, not covered by Spring Boot's
-             own dependency management, so its version is pinned explicitly. -->
+        <!-- Third-party, not covered by Spring Boot's dependency management. -->
         <springdoc.version>3.0.3</springdoc.version>
-        <!-- Code quality: coverage measurement + SonarQube Cloud scanner.
-             Neither is covered by the parent BOM, so both are pinned here,
-             verified directly against Maven Central. -->
         <jacoco.version>0.8.15</jacoco.version>
         <sonar-maven-plugin.version>5.7.0.6970</sonar-maven-plugin.version>
-        <!-- Where JaCoCo's coverage.xml goes, and where the Sonar scanner is
-             told to look for it (see jacoco-maven-plugin executions below).
-             Two separate reports feed in: unit tests (surefire) write
-             target/site/jacoco/jacoco.xml via the `report` goal, integration
-             tests (failsafe) write target/site/jacoco-it/jacoco.xml via the
-             `report-integration` goal. Sonar accepts a comma-separated list
-             and merges them - omitting either would understate coverage,
-             since a lot of this app's coverage comes from TaskApiIT
-             exercising the full HTTP stack, not just the unit tests. -->
+        <!-- Two reports feed Sonar: unit tests (surefire) write
+             jacoco/jacoco.xml, integration tests (failsafe) write
+             jacoco-it/jacoco.xml (see jacoco-maven-plugin executions below).
+             Omitting either would understate coverage - much of this app's
+             coverage comes from TaskApiIT exercising the full HTTP stack. -->
         <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml,${project.build.directory}/site/jacoco-it/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
-        <!-- Mirrors the JaCoCo <excludes> below: keeps the trivial Spring
-             Boot launcher class out of Sonar's coverage % too, for the same
-             reason (see jacoco-maven-plugin comment). This only affects
-             coverage accounting - Sonar still analyzes the class for bugs
-             and code smells. -->
+        <!-- Mirrors the JaCoCo <excludes> below for the same class. -->
         <sonar.coverage.exclusions>**/MySpringAppApplication.java</sonar.coverage.exclusions>
 
+        <!-- Security: Dependabot alerts #84/#86/#87/#88 (jackson-databind
+             CVEs, fixed in 2.18.9/2.21.5/2.22.1 for Jackson 2, 3.1.4 for
+             Jackson 3 - see GHSA-5jmj-h7xm-6q6v). Jackson 3's jackson-databind
+             is only a transitive dependency here (via
+             spring-boot-starter-jackson) and isn't self-contained: it needs a
+             matching jackson-core, and still borrows jackson-annotations from
+             the 2.x line (Jackson has no separate 3.x annotations module).
+             Pinning jackson-databind alone left jackson-annotations mismatched
+             and broke serialization at runtime (NoClassDefFoundError:
+             JsonApplyView). Importing Jackson's own BOM below keeps the whole
+             Jackson 3 stack internally consistent instead. -->
+        <jackson2-databind.version>2.22.0</jackson2-databind.version>
+        <jackson3-bom.version>3.2.0</jackson3-bom.version>
     </properties>
 
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>tools.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson3-bom.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
-        <!-- Core Spring Boot Starters.
-             Spring Boot 4 modularized spring-boot-starter-web into
-             technology-specific starters; for a servlet/Spring MVC app the
-             replacement is spring-boot-starter-webmvc. -->
+        <!-- Spring Boot 4 modularized spring-boot-starter-web into
+             technology-specific starters; for servlet/Spring MVC it's
+             spring-boot-starter-webmvc. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc</artifactId>
@@ -67,35 +78,29 @@
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
-        <!-- JSON support. Spring Boot 4 no longer bundles this with
-             spring-boot-starter-webmvc; without it the app can't
-             serialize/deserialize JSON at all. Auto-configures a Jackson 3
-             JsonMapper. -->
+        <!-- Spring Boot 4 no longer bundles JSON support with
+             spring-boot-starter-webmvc; without this the app can't
+             (de)serialize JSON. Auto-configures a Jackson 3 JsonMapper. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-jackson</artifactId>
         </dependency>
 
-        <!-- H2 web console. Spring Boot 4 split its auto-configuration out
-             of the raw h2 dependency; without this module,
-             spring.h2.console.enabled=true has no effect. Note: there is no
-             "spring-boot-starter-h2-console" wrapper (some early Boot 4
-             docs/blog posts reference one from a pre-release milestone) -
-             this module is depended on directly, and is still covered by
-             the parent's dependency management (no explicit version). -->
+        <!-- H2 web console auto-configuration, split out of the raw h2
+             dependency in Boot 4. There is no "spring-boot-starter-h2-console"
+             wrapper despite some pre-release docs referencing one; without
+             this module spring.h2.console.enabled has no effect. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-h2console</artifactId>
         </dependency>
 
-        <!-- Database: In-memory H2 for development and testing -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Utility: Lombok for boilerplate reduction -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -105,40 +110,32 @@
 
         <!-- ===================== Observability ===================== -->
 
-        <!-- Actuator: health/info/metrics endpoints. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
-        <!-- Explicit health module. Spring Boot's default web security filter
-             chain had a critical bypass (CVE-2026-40976, fixed in 4.0.6) that
-             specifically affected apps depending on the actuator without
-             depending on spring-boot-health. We're on a patched version
-             (4.1.0), but declaring this explicitly is the official
-             defense-in-depth recommendation and costs nothing. -->
+        <!-- Explicit health module: defense-in-depth per the official
+             recommendation following CVE-2026-40976 (a security filter chain
+             bypass affecting actuator without spring-boot-health), even
+             though 4.1.0 is already patched. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-health</artifactId>
         </dependency>
 
-        <!-- Micrometer + Prometheus: having this registry on the classpath is
-             enough for Spring Boot to auto-configure it and expose
-             /actuator/prometheus (once listed in the exposure include below). -->
+        <!-- On the classpath, this is enough for Spring Boot to
+             auto-configure /actuator/prometheus (once exposed, see
+             application.properties). -->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
 
-        <!-- Distributed tracing: bridges Micrometer's Observation API to
-             OpenTelemetry, and exports spans via OTLP (to Jaeger locally).
-             Boot 4.1 has a new spring-boot-starter-opentelemetry that bundles
-             all of this, but as of this writing it's only published as
-             milestone/RC builds for the 4.1.0 line (no 4.1.0 final release
-             on Maven Central), so its constituent modules are declared
-             directly instead - inspected from the starter's own POM to
-             match exactly what it would pull in, at the same
-             dependency-managed versions. -->
+        <!-- Bridges Micrometer to OpenTelemetry and exports spans via OTLP
+             (to Jaeger locally). Boot 4.1's spring-boot-starter-opentelemetry
+             isn't yet on a final 4.1.0 release, so its constituent modules are
+             declared directly, matching what the starter's own POM pulls in. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-micrometer-metrics</artifactId>
@@ -162,29 +159,19 @@
 
         <!-- ===================== API Documentation ===================== -->
 
-        <!-- Swagger UI / OpenAPI 3 spec generation, served at /swagger-ui.html
-             and /v3/api-docs. Pinned explicitly (springdoc.version property)
-             since it's not part of Spring's own dependency management.
-             Note: springdoc 3.0.3 was built/tested against Boot 4.0.5;
-             springdoc still generates its spec using Jackson 2 internally
-             even on Boot 4 (tracked upstream:
-             https://github.com/springdoc/springdoc-openapi/issues/3268),
-             which is why jackson-databind below is on the main classpath,
-             not just test. If /swagger-ui.html or /v3/api-docs throws a
-             Jackson-related error, that upstream issue is why. -->
+        <!-- springdoc 3.0.3 still generates its OpenAPI spec using Jackson 2
+             internally even under Boot 4/Jackson 3 (tracked upstream:
+             springdoc/springdoc-openapi#3268), which is why jackson-databind
+             below is on the main classpath, not just test. -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>${springdoc.version}</version>
         </dependency>
 
-        <!-- Testing: Spring Boot 4 ships a dedicated *-test starter per
-             production starter instead of one catch-all spring-boot-starter-test.
-             Each of these brings spring-boot-starter-test (JUnit 5, Mockito,
-             AssertJ, Jackson, ...) transitively, so it doesn't need to be
-             declared separately. -->
-
-        <!-- MockMvc, @WebMvcTest, @AutoConfigureMockMvc, MockMvcTester -->
+        <!-- Spring Boot 4 ships a dedicated *-test starter per production
+             starter; each brings spring-boot-starter-test (JUnit 5, Mockito,
+             AssertJ, Jackson...) transitively. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc-test</artifactId>
@@ -197,8 +184,6 @@
             </exclusions>
         </dependency>
 
-        <!-- RestTestClient / TestRestTemplate for real-HTTP integration tests
-             against a running embedded server (@SpringBootTest RANDOM_PORT) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-restclient-test</artifactId>
@@ -211,7 +196,6 @@
             </exclusions>
         </dependency>
 
-        <!-- Test-support counterpart for spring-boot-starter-jackson -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-jackson-test</artifactId>
@@ -224,40 +208,34 @@
             </exclusions>
         </dependency>
 
-        <!-- Spring Boot 4's auto-configured JSON mapper is Jackson 3
-             (tools.jackson.databind.json.JsonMapper). This Jackson 2
-             databind jar is on the main (not test) classpath for two
-             reasons: TaskControllerUnitTest builds request bodies with the
-             classic Jackson 2 ObjectMapper as a plain, non-Spring-managed
-             utility, and springdoc-openapi (above) still uses Jackson 2
-             internally to generate the OpenAPI spec even under Boot 4/Jackson
-             3. spring-boot-starter-jackson only brings Jackson 3 plus the
-             shared jackson-annotations module, not this. -->
+        <!-- Boot 4's auto-configured JSON mapper is Jackson 3
+             (tools.jackson...JsonMapper), not this. Needed on the main
+             classpath because TaskControllerUnitTest builds request bodies
+             with a plain Jackson 2 ObjectMapper, and springdoc (above) uses
+             Jackson 2 internally - spring-boot-starter-jackson alone doesn't
+             bring it. -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
+            <version>${jackson2-databind.version}</version>
         </dependency>
     </dependencies>
 
     <build>
         <plugins>
-            <!-- Spring Boot JAR Packaging -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
 
-            <!-- Maven Compiler Plugin for JDK 25 and Lombok -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
-                    <!-- Keep method parameter names in bytecode. springdoc-openapi
-                         needs this to resolve parameter names in the generated
-                         API docs (see springdoc FAQ); it's also just generally
-                         useful for reflection-based frameworks. -->
+                    <!-- springdoc-openapi needs parameter names in bytecode
+                         to resolve them in the generated API docs. -->
                     <parameters>true</parameters>
                     <annotationProcessorPaths>
                         <path>
@@ -269,16 +247,15 @@
                 </configuration>
             </plugin>
 
-            <!-- Unit tests: runs *Test.java during the default `test` phase (mvn test) -->
+            <!-- Unit tests (*Test.java) run in the default `test` phase. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${failsafe-surefire.version}</version>
             </plugin>
 
-            <!-- Integration tests: runs *IT.java during `mvn verify`, after the app is packaged.
-                 Keeping these separate from unit tests keeps `mvn test` fast while `mvn verify`
-                 (used in CI) exercises the full Spring context over real HTTP. -->
+            <!-- Integration tests (*IT.java) run during `mvn verify`, after
+                 packaging, keeping `mvn test` fast. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
@@ -293,47 +270,34 @@
                 </executions>
             </plugin>
 
-            <!-- JaCoCo: instruments both unit tests (surefire) and integration
-                 tests (failsafe) and merges their coverage into one report at
-                 target/site/jacoco/jacoco.xml, which SonarQube Cloud reads via
-                 sonar.coverage.jacoco.xmlReportPaths (see properties above). -->
+            <!-- Instruments both unit and integration tests; reports feed
+                 SonarQube Cloud via sonar.coverage.jacoco.xmlReportPaths
+                 above. -->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>${jacoco.version}</version>
                 <configuration>
-                    <!-- Exclude the Spring Boot launcher class: its main()
-                         is a single SpringApplication.run() call that adds
-                         no testable behavior of its own, and every
-                         @SpringBootTest (see TaskApiIT) already boots the
-                         full context and proves the wiring works. Testing
-                         main() itself would just re-boot the app a second
-                         time for no additional signal. Keeps this class out
-                         of both the local JaCoCo report and SonarQube's
-                         coverage % (see sonar.coverage.exclusions below, so
-                         both stay consistent). -->
+                    <!-- Excluded: main() is a single SpringApplication.run()
+                         call, and every @SpringBootTest already boots the
+                         full context and proves the wiring works. -->
                     <excludes>
                         <exclude>**/MySpringAppApplication.class</exclude>
                     </excludes>
                 </configuration>
                 <executions>
-                    <!-- Attaches the coverage agent before surefire (unit tests) runs -->
                     <execution>
                         <id>prepare-agent</id>
                         <goals>
                             <goal>prepare-agent</goal>
                         </goals>
                     </execution>
-                    <!-- Attaches a second agent, writing to a separate data file,
-                         before failsafe (integration tests) runs -->
                     <execution>
                         <id>prepare-agent-integration</id>
                         <goals>
                             <goal>prepare-agent-integration</goal>
                         </goals>
                     </execution>
-                    <!-- Generates the merged XML report during `mvn verify`, after
-                         both unit and integration tests have run -->
                     <execution>
                         <id>report</id>
                         <phase>verify</phase>
@@ -345,12 +309,10 @@
                 </executions>
             </plugin>
 
-            <!-- SonarQube Cloud scanner. Not bound to any lifecycle phase -
-                 invoked explicitly via `mvn sonar:sonar` (see .github/workflows/ci.yml),
-                 after `verify` has produced the JaCoCo report above. Declared here
-                 purely to pin its version; project key/organization/token are
-                 passed as -D flags in CI rather than hardcoded, since they're
-                 SonarQube-Cloud-account-specific and not needed for a normal build. -->
+            <!-- Not bound to any lifecycle phase - invoked explicitly via
+                 `mvn sonar:sonar` in CI, after `verify` produces the JaCoCo
+                 report. Project key/organization/token are passed as -D
+                 flags in CI rather than hardcoded here. -->
             <plugin>
                 <groupId>org.sonarsource.scanner.maven</groupId>
                 <artifactId>sonar-maven-plugin</artifactId>

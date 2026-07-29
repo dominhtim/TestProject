@@ -4,6 +4,7 @@ import com.example.dto.TaskDto;
 import com.example.model.Task;
 import com.example.repository.TaskRepository;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,8 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * REST Controller for Task CRUD operations.
- * Base mapping is set to /api/v1/tasks.
+ * REST Controller for Task CRUD operations, mapped to /api/v1/tasks.
  *
  * Speaks {@link TaskDto} over the wire, never the {@link Task} JPA entity
  * directly (see TaskDto's javadoc for why), mapping to/from the entity
@@ -20,22 +20,18 @@ import java.util.Optional;
  */
 @RestController
 @RequestMapping("/api/v1/tasks")
+@RequiredArgsConstructor
 public class TaskController {
 
     private final TaskRepository taskRepository;
 
-    // Constructor Injection is the modern Spring standard
-    public TaskController(TaskRepository taskRepository) {
-        this.taskRepository = taskRepository;
-    }
-
     @PostMapping
     public ResponseEntity<TaskDto> createTask(@Valid @RequestBody TaskDto request) {
-        // Validation is triggered by @Valid. Ignore any client-supplied id -
-        // creation always produces a new row with a generated id.
-        Task newTask = new Task();
-        newTask.setTitle(request.getTitle());
-        newTask.setCompleted(request.isCompleted());
+        // Ignore any client-supplied id - creation always generates a new one.
+        Task newTask = Task.builder()
+                .title(request.getTitle())
+                .completed(request.isCompleted())
+                .build();
 
         Task savedTask = taskRepository.save(newTask);
         return ResponseEntity.ok(toDto(savedTask));
@@ -50,10 +46,8 @@ public class TaskController {
 
     @GetMapping("/{id}")
     public ResponseEntity<TaskDto> getTaskById(@PathVariable Long id) {
-        Optional<Task> task = taskRepository.findById(id);
-
-        // Return 404 if the task is not found
-        return task.map(t -> ResponseEntity.ok(toDto(t)))
+        Optional<Task> found = taskRepository.findById(id);
+        return found.map(task -> ResponseEntity.ok(toDto(task)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
@@ -61,11 +55,8 @@ public class TaskController {
     public ResponseEntity<TaskDto> updateTask(@PathVariable Long id, @Valid @RequestBody TaskDto request) {
         return taskRepository.findById(id)
                 .map(existingTask -> {
-                    // Update fields
                     existingTask.setTitle(request.getTitle());
                     existingTask.setCompleted(request.isCompleted());
-
-                    // Save and return the updated task
                     Task updatedTask = taskRepository.save(existingTask);
                     return ResponseEntity.ok(toDto(updatedTask));
                 })
@@ -77,13 +68,16 @@ public class TaskController {
         return taskRepository.findById(id)
                 .map(task -> {
                     taskRepository.delete(task);
-                    // Return 204 No Content for a successful deletion
                     return ResponseEntity.noContent().<Void>build();
                 })
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     private static TaskDto toDto(Task task) {
-        return new TaskDto(task.getId(), task.getTitle(), task.isCompleted());
+        return TaskDto.builder()
+                .id(task.getId())
+                .title(task.getTitle())
+                .completed(task.isCompleted())
+                .build();
     }
 }

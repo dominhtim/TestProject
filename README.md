@@ -108,6 +108,20 @@ observability tools in Docker, start just those three services
 
 ------------------------------------------------------------------------
 
+## Concurrency
+
+The app runs each request on a virtual thread
+(`spring.threads.virtual.enabled=true`), so existing blocking JPA/JDBC code
+scales to a large number of concurrent requests without a reactive rewrite -
+a blocked virtual thread doesn't tie up an OS thread the way a blocked
+platform thread would. Requires Java 21+ (this project targets 25).
+
+With the platform-thread ceiling removed, the JDBC connection pool becomes
+the real concurrency limit, so `spring.datasource.hikari.maximum-pool-size`
+is raised from HikariCP's default of 10 to 50.
+
+------------------------------------------------------------------------
+
 ## Database Console
 
 The H2 in-memory database console is available for easy viewing at:\

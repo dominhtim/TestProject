@@ -45,7 +45,7 @@
              and broke serialization at runtime (NoClassDefFoundError:
              JsonApplyView). Importing Jackson's own BOM below keeps the whole
              Jackson 3 stack internally consistent instead. -->
-        <jackson2-databind.version>2.22.0</jackson2-databind.version>
+        <jackson2-databind.version>2.22.1</jackson2-databind.version>
         <jackson3-bom.version>3.2.0</jackson3-bom.version>
     </properties>
 

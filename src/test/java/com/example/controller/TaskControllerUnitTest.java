@@ -27,14 +27,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * deals in the {@link Task} entity, matching TaskController's mapping.
  */
 @WebMvcTest(TaskController.class)
-class TaskControllerUnitTest {
+public class TaskControllerUnitTest {
 
     private static final String API_V1_TASKS = "/api/v1/tasks";
 
     @Autowired
     private MockMvc mockMvc;
 
-    // Built directly rather than autowired: Spring Boot 4's auto-configured
+    // Built directly rather than autowired: Spring Boot 4's autoconfigured
     // JSON mapper bean is Jackson 3's JsonMapper, not this (Jackson 2)
     // ObjectMapper type, so there's no guarantee a matching bean exists in
     // the context.
@@ -47,7 +47,7 @@ class TaskControllerUnitTest {
     private final Task task2 = Task.builder().id(2L).title("Unit Test Task 2").completed(true).build();
 
     @Test
-    void shouldCreateTask() throws Exception {
+    public void shouldCreateTask() throws Exception {
         when(taskRepository.save(any(Task.class))).thenReturn(task1);
 
         TaskDto request = TaskDto.builder().title("Unit Test Task 1").completed(false).build();
@@ -63,7 +63,7 @@ class TaskControllerUnitTest {
     }
 
     @Test
-    void shouldReturnBadRequestOnCreateIfTitleIsMissing() throws Exception {
+    public void shouldReturnBadRequestOnCreateIfTitleIsMissing() throws Exception {
         TaskDto invalidRequest = TaskDto.builder().title(" ").completed(false).build();
 
         mockMvc.perform(post(API_V1_TASKS)
@@ -75,7 +75,7 @@ class TaskControllerUnitTest {
     }
 
     @Test
-    void shouldGetAllTasks() throws Exception {
+    public void shouldGetAllTasks() throws Exception {
         when(taskRepository.findAll()).thenReturn(Arrays.asList(task1, task2));
 
         mockMvc.perform(get(API_V1_TASKS))
@@ -87,7 +87,7 @@ class TaskControllerUnitTest {
     }
 
     @Test
-    void shouldGetTaskById() throws Exception {
+    public void shouldGetTaskById() throws Exception {
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task1));
 
         mockMvc.perform(get(API_V1_TASKS + "/{id}", 1L))
@@ -99,7 +99,7 @@ class TaskControllerUnitTest {
     }
 
     @Test
-    void shouldReturn404IfTaskNotFound() throws Exception {
+    public void shouldReturn404IfTaskNotFound() throws Exception {
         when(taskRepository.findById(999L)).thenReturn(Optional.empty());
 
         mockMvc.perform(get(API_V1_TASKS + "/{id}", 999L))
@@ -109,7 +109,7 @@ class TaskControllerUnitTest {
     }
 
     @Test
-    void shouldUpdateTask() throws Exception {
+    public void shouldUpdateTask() throws Exception {
         TaskDto updateRequest = TaskDto.builder().id(1L).title("Updated Title").completed(true).build();
         Task updatedEntity = Task.builder().id(1L).title("Updated Title").completed(true).build();
 
@@ -128,7 +128,7 @@ class TaskControllerUnitTest {
     }
 
     @Test
-    void shouldReturn404OnUpdateIfTaskNotFound() throws Exception {
+    public void shouldReturn404OnUpdateIfTaskNotFound() throws Exception {
         TaskDto updateRequest = TaskDto.builder().id(999L).title("Non-existent").completed(true).build();
 
         when(taskRepository.findById(999L)).thenReturn(Optional.empty());
@@ -143,7 +143,7 @@ class TaskControllerUnitTest {
     }
 
     @Test
-    void shouldDeleteTask() throws Exception {
+    public void shouldDeleteTask() throws Exception {
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task1));
         doNothing().when(taskRepository).delete(any(Task.class));
 
@@ -155,7 +155,7 @@ class TaskControllerUnitTest {
     }
 
     @Test
-    void shouldReturn404OnDeleteIfTaskNotFound() throws Exception {
+    public void shouldReturn404OnDeleteIfTaskNotFound() throws Exception {
         when(taskRepository.findById(999L)).thenReturn(Optional.empty());
 
         mockMvc.perform(delete(API_V1_TASKS + "/{id}", 999L))

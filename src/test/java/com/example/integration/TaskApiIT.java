@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @AutoConfigureRestTestClient
-class TaskApiIT {
+public class TaskApiIT {
 
     private static final String API_V1_TASKS = "/api/v1/tasks";
 
@@ -43,7 +43,7 @@ class TaskApiIT {
     }
 
     @Test
-    void shouldSupportFullCrudLifecycleOverRealHttp() {
+    public void shouldSupportFullCrudLifecycleOverRealHttp() {
         TaskDto newTask = TaskDto.builder().title("Ship the release").completed(false).build();
         TaskDto created = restClient.post().uri(API_V1_TASKS)
                 .body(newTask)
@@ -92,7 +92,7 @@ class TaskApiIT {
     }
 
     @Test
-    void shouldRejectInvalidTaskWithBadRequest() {
+    public void shouldRejectInvalidTaskWithBadRequest() {
         TaskDto blankTitleTask = TaskDto.builder().title("  ").completed(false).build();
 
         restClient.post().uri(API_V1_TASKS)
@@ -102,14 +102,14 @@ class TaskApiIT {
     }
 
     @Test
-    void shouldReturn404ForUnknownTask() {
+    public void shouldReturn404ForUnknownTask() {
         restClient.get().uri(API_V1_TASKS + "/{id}", 999_999L)
                 .exchange()
                 .expectStatus().isNotFound();
     }
 
     @Test
-    void shouldCreateTaskFromMinimalJsonMissingOptionalFields() {
+    public void shouldCreateTaskFromMinimalJsonMissingOptionalFields() {
         // Regression test: Jackson must not require "completed"/"id" just
         // because TaskDto also has an all-args constructor (see TaskDto).
         Map<String, Object> minimalPayload = Map.of("title", "Buy groceries");

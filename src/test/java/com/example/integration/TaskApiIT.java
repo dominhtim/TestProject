@@ -5,6 +5,7 @@ import com.example.repository.TaskRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
@@ -44,19 +45,23 @@ class TaskApiIT {
 
     @Test
     void shouldSupportFullCrudLifecycleOverRealHttp() {
+        // Read the response as a Map rather than TaskDto: id is
+        // @JsonProperty(access = READ_ONLY) on TaskDto, so Jackson would
+        // refuse to deserialize it back out of the response body even
+        // though it's genuinely present on the wire.
         TaskDto newTask = TaskDto.builder().title("Ship the release").completed(false).build();
-        TaskDto created = restClient.post().uri(API_V1_TASKS)
+        Map<String, Object> created = restClient.post().uri(API_V1_TASKS)
                 .body(newTask)
                 .exchange()
                 .expectStatus().isOk()
-                .expectBody(TaskDto.class)
+                .expectBody(new ParameterizedTypeReference<Map<String, Object>>() {})
                 .returnResult()
                 .getResponseBody();
 
         assertThat(created).isNotNull();
-        Long id = created.getId();
+        Long id = ((Number) created.get("id")).longValue();
         assertThat(id).isNotNull();
-        assertThat(created.getTitle()).isEqualTo("Ship the release");
+        assertThat(created.get("title")).isEqualTo("Ship the release");
 
         restClient.get().uri(API_V1_TASKS)
                 .exchange()
@@ -71,16 +76,16 @@ class TaskApiIT {
                 .jsonPath("$.title").isEqualTo("Ship the release");
 
         TaskDto updateDetails = TaskDto.builder().id(id).title("Ship the release (done)").completed(true).build();
-        TaskDto updated = restClient.put().uri(API_V1_TASKS + "/{id}", id)
+        Map<String, Object> updated = restClient.put().uri(API_V1_TASKS + "/{id}", id)
                 .body(updateDetails)
                 .exchange()
                 .expectStatus().isOk()
-                .expectBody(TaskDto.class)
+                .expectBody(new ParameterizedTypeReference<Map<String, Object>>() {})
                 .returnResult()
                 .getResponseBody();
 
         assertThat(updated).isNotNull();
-        assertThat(updated.isCompleted()).isTrue();
+        assertThat(updated.get("completed")).isEqualTo(true);
 
         restClient.delete().uri(API_V1_TASKS + "/{id}", id)
                 .exchange()

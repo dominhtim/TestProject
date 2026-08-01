@@ -13,9 +13,9 @@ import java.util.Optional;
 
 /**
  * REST Controller for Task CRUD operations, mapped to /api/v1/tasks.
- *
+ * <p>
  * Speaks {@link TaskDto} over the wire, never the {@link Task} JPA entity
- * directly (see TaskDto's javadoc for why), mapping to/from the entity
+ * directly (see TaskDto's Javadoc for why), mapping to/from the entity
  * internally.
  */
 @RestController
@@ -27,27 +27,26 @@ public class TaskController {
 
     @PostMapping
     public ResponseEntity<TaskDto> createTask(@Valid @RequestBody TaskDto request) {
-        // Ignore any client-supplied id - creation always generates a new one.
         Task newTask = Task.builder()
                 .title(request.getTitle())
                 .completed(request.isCompleted())
                 .build();
 
         Task savedTask = taskRepository.save(newTask);
-        return ResponseEntity.ok(toDto(savedTask));
+        return ResponseEntity.ok(TaskDto.from(savedTask));
     }
 
     @GetMapping
     public List<TaskDto> getAllTasks() {
         return taskRepository.findAll().stream()
-                .map(TaskController::toDto)
+                .map(TaskDto::from)
                 .toList();
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<TaskDto> getTaskById(@PathVariable Long id) {
         Optional<Task> found = taskRepository.findById(id);
-        return found.map(task -> ResponseEntity.ok(toDto(task)))
+        return found.map(task -> ResponseEntity.ok(TaskDto.from(task)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
@@ -58,7 +57,7 @@ public class TaskController {
                     existingTask.setTitle(request.getTitle());
                     existingTask.setCompleted(request.isCompleted());
                     Task updatedTask = taskRepository.save(existingTask);
-                    return ResponseEntity.ok(toDto(updatedTask));
+                    return ResponseEntity.ok(TaskDto.from(updatedTask));
                 })
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
@@ -71,13 +70,5 @@ public class TaskController {
                     return ResponseEntity.noContent().<Void>build();
                 })
                 .orElseGet(() -> ResponseEntity.notFound().build());
-    }
-
-    private static TaskDto toDto(Task task) {
-        return TaskDto.builder()
-                .id(task.getId())
-                .title(task.getTitle())
-                .completed(task.isCompleted())
-                .build();
     }
 }

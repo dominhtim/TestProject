@@ -34,7 +34,7 @@ class TaskControllerUnitTest {
     @Autowired
     private MockMvc mockMvc;
 
-    // Built directly rather than autowired: Spring Boot 4's auto-configured
+    // Built directly rather than autowired: Spring Boot 4's autoconfigured
     // JSON mapper bean is Jackson 3's JsonMapper, not this (Jackson 2)
     // ObjectMapper type, so there's no guarantee a matching bean exists in
     // the context.

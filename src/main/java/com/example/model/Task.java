@@ -24,7 +24,7 @@ import lombok.NoArgsConstructor;
 // like {"title": "..."}. Disabling it keeps Jackson on the no-arg
 // constructor + setters instead.
 @AllArgsConstructor(onConstructor_ = @__(@JsonCreator(mode = JsonCreator.Mode.DISABLED)))
-@Builder // reuses the @AllArgsConstructor above rather than generating a duplicate
+@Builder
 public class Task {
 
     @Id

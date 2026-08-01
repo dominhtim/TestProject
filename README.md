@@ -77,7 +77,7 @@ The app is instrumented with Actuator, Micrometer, and OpenTelemetry.
 | Health check         | http://localhost:8080/actuator/health        |
 | App info             | http://localhost:8080/actuator/info          |
 | Prometheus metrics   | http://localhost:8080/actuator/prometheus    |
-| Structured logs      | Console, JSON (ECS format)                   |
+| Structured logs      | Console, JSON (ECS format); shipped to Loki via Alloy in the Docker stack |
 | Distributed tracing  | Exported via OTLP to Jaeger                  |
 
 Only `health`, `info`, `prometheus`, and `metrics` are exposed
@@ -91,20 +91,28 @@ reachable by anyone. See [`SECURITY.md`](SECURITY.md) for more on this.
 docker compose up --build
 ```
 
-This builds the app image and starts it alongside Prometheus, Jaeger, and
-Grafana, all wired together:
+This builds the app image and starts it alongside Prometheus, Jaeger,
+Loki+Alloy, and Grafana, all wired together:
 
 -   **App:** http://localhost:8080
 -   **Prometheus:** http://localhost:9090
 -   **Jaeger UI:** http://localhost:16686
+-   **Alloy UI:** http://localhost:12345 (log collector debug/status page)
 -   **Grafana:** http://localhost:3000 (login `admin` / `admin`, Prometheus
-    datasource is pre-provisioned)
+    and Loki datasources are pre-provisioned)
+
+Logs from every container in the stack are collected by Alloy and shipped to
+Loki (see [`observability/alloy/config.alloy`](observability/alloy/config.alloy)).
+In Grafana's Explore view, pick the Loki datasource and query, for example,
+`{container="testproject-app-1"}` to see just the app's logs, or add
+`| json | status >= 500` to filter to error responses.
 
 If you'd rather run the app directly (`mvn spring-boot:run`) and only the
-observability tools in Docker, start just those three services
-(`docker compose up prometheus jaeger grafana`) and change the target in
-[`observability/prometheus.yml`](observability/prometheus.yml) from
-`app:8080` to `host.docker.internal:8080`.
+observability tools in Docker, start just those services
+(`docker compose up prometheus jaeger loki alloy grafana`) and change the
+target in [`observability/prometheus.yml`](observability/prometheus.yml) from
+`app:8080` to `host.docker.internal:8080`. Note Alloy will then only see logs
+from the other Docker containers, not the app running on your host.
 
 ------------------------------------------------------------------------
 

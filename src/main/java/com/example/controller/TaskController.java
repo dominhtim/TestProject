@@ -3,30 +3,27 @@ package com.example.controller;
 import com.example.dto.TaskDto;
 import com.example.model.Task;
 import com.example.repository.TaskRepository;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Optional;
 
 /**
- * REST Controller for Task CRUD operations, mapped to /api/v1/tasks.
- * <p>
- * Speaks {@link TaskDto} over the wire, never the {@link Task} JPA entity
- * directly (see TaskDto's Javadoc for why), mapping to/from the entity
- * internally.
+ * Implements {@link TaskApi} - see there for the mappings, request binding,
+ * and OpenAPI response documentation. Speaks {@link TaskDto} over the wire,
+ * never the {@link Task} JPA entity directly (see TaskDto's Javadoc for why),
+ * mapping to/from the entity internally.
  */
 @RestController
-@RequestMapping("/api/v1/tasks")
 @RequiredArgsConstructor
-public class TaskController {
+public class TaskController implements TaskApi {
 
     private final TaskRepository taskRepository;
 
-    @PostMapping
-    public ResponseEntity<TaskDto> createTask(@Valid @RequestBody TaskDto request) {
+    @Override
+    public ResponseEntity<TaskDto> createTask(TaskDto request) {
         Task newTask = Task.builder()
                 .title(request.getTitle())
                 .completed(request.isCompleted())
@@ -36,22 +33,22 @@ public class TaskController {
         return ResponseEntity.ok(TaskDto.from(savedTask));
     }
 
-    @GetMapping
+    @Override
     public List<TaskDto> getAllTasks() {
         return taskRepository.findAll().stream()
                 .map(TaskDto::from)
                 .toList();
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<TaskDto> getTaskById(@PathVariable Long id) {
+    @Override
+    public ResponseEntity<TaskDto> getTaskById(Long id) {
         Optional<Task> found = taskRepository.findById(id);
         return found.map(task -> ResponseEntity.ok(TaskDto.from(task)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<TaskDto> updateTask(@PathVariable Long id, @Valid @RequestBody TaskDto request) {
+    @Override
+    public ResponseEntity<TaskDto> updateTask(Long id, TaskDto request) {
         return taskRepository.findById(id)
                 .map(existingTask -> {
                     existingTask.setTitle(request.getTitle());
@@ -62,8 +59,8 @@ public class TaskController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTask(@PathVariable Long id) {
+    @Override
+    public ResponseEntity<Void> deleteTask(Long id) {
         return taskRepository.findById(id)
                 .map(task -> {
                     taskRepository.delete(task);

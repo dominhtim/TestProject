@@ -84,8 +84,7 @@ class TaskApiIT {
                 .returnResult()
                 .getResponseBody();
 
-        assertThat(updated).isNotNull();
-        assertThat(updated).containsEntry("completed", true);
+        assertThat(updated).isNotNull().containsEntry("completed", true);
 
         restClient.delete().uri(API_V1_TASKS + "/{id}", id)
                 .exchange()

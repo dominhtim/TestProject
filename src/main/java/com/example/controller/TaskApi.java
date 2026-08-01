@@ -2,7 +2,6 @@ package com.example.controller;
 
 import com.example.dto.TaskDto;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -26,34 +25,26 @@ import java.util.List;
 public interface TaskApi {
 
     @PostMapping
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Task created"),
-            @ApiResponse(responseCode = "400", description = "Validation failed (e.g. blank title)")
-    })
+    @ApiResponse(responseCode = "200", description = "Task created")
+    @ApiResponse(responseCode = "400", description = "Validation failed (e.g. blank title)")
     ResponseEntity<TaskDto> createTask(@Valid @RequestBody TaskDto request);
 
     @GetMapping
     List<TaskDto> getAllTasks();
 
     @GetMapping("/{id}")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Task found"),
-            @ApiResponse(responseCode = "404", description = "No task with the given id")
-    })
+    @ApiResponse(responseCode = "200", description = "Task found")
+    @ApiResponse(responseCode = "404", description = "No task with the given id")
     ResponseEntity<TaskDto> getTaskById(@PathVariable Long id);
 
     @PutMapping("/{id}")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Task updated"),
-            @ApiResponse(responseCode = "400", description = "Validation failed (e.g. blank title)"),
-            @ApiResponse(responseCode = "404", description = "No task with the given id")
-    })
+    @ApiResponse(responseCode = "200", description = "Task updated")
+    @ApiResponse(responseCode = "400", description = "Validation failed (e.g. blank title)")
+    @ApiResponse(responseCode = "404", description = "No task with the given id")
     ResponseEntity<TaskDto> updateTask(@PathVariable Long id, @Valid @RequestBody TaskDto request);
 
     @DeleteMapping("/{id}")
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Task deleted"),
-            @ApiResponse(responseCode = "404", description = "No task with the given id")
-    })
+    @ApiResponse(responseCode = "204", description = "Task deleted")
+    @ApiResponse(responseCode = "404", description = "No task with the given id")
     ResponseEntity<Void> deleteTask(@PathVariable Long id);
 }

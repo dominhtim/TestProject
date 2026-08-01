@@ -5,10 +5,10 @@ import com.example.repository.TaskRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
@@ -61,7 +61,7 @@ class TaskApiIT {
         assertThat(created).isNotNull();
         Long id = ((Number) created.get("id")).longValue();
         assertThat(id).isNotNull();
-        assertThat(created.get("title")).isEqualTo("Ship the release");
+        assertThat(created).containsEntry("title", "Ship the release");
 
         restClient.get().uri(API_V1_TASKS)
                 .exchange()
@@ -85,7 +85,7 @@ class TaskApiIT {
                 .getResponseBody();
 
         assertThat(updated).isNotNull();
-        assertThat(updated.get("completed")).isEqualTo(true);
+        assertThat(updated).containsEntry("completed", true);
 
         restClient.delete().uri(API_V1_TASKS + "/{id}", id)
                 .exchange()

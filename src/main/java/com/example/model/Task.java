@@ -34,5 +34,5 @@ public class Task {
     @NotBlank(message = "Title is mandatory")
     private String title;
 
-    private boolean completed = false;
+    private boolean completed;
 }

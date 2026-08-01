@@ -17,7 +17,11 @@ import java.util.Optional;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -34,7 +38,7 @@ class TaskControllerUnitTest {
     @Autowired
     private MockMvc mockMvc;
 
-    // Built directly rather than autowired: Spring Boot 4's auto-configured
+    // Built directly rather than autowired: Spring Boot 4's autoconfigured
     // JSON mapper bean is Jackson 3's JsonMapper, not this (Jackson 2)
     // ObjectMapper type, so there's no guarantee a matching bean exists in
     // the context.

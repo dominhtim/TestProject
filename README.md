@@ -26,6 +26,31 @@ The application will start on:\
 
 ------------------------------------------------------------------------
 
+## Project Layout
+
+Packages are organised by feature, not by layer:
+
+```
+com/example/
+├── task/                    everything about Task, in one place
+│   ├── Task, TaskDto, TaskRepository
+│   ├── TaskApi, TaskController      HTTP contract + mapping
+│   └── TaskService                  transaction boundary + write rules
+└── shared/
+    ├── config/              OpenApiConfig
+    ├── error/               GlobalExceptionHandler + the exceptions it maps
+    └── web/                 SortablePropertyValidator, composed @ApiResponse annotations
+```
+
+A second resource is one new package under `com/example/`, not an edit to six
+layer packages. `shared/` is deliberately small — something belongs there only
+once a second feature would otherwise copy it.
+
+Tests mirror the same structure, so `com.example.task` holds the unit tests,
+the service tests and the integration tests for that feature together.
+
+------------------------------------------------------------------------
+
 ## API Endpoints (CRUD)
 
 All endpoints use the base URL:\

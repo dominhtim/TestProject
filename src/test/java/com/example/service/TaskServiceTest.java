@@ -53,7 +53,7 @@ class TaskServiceTest {
 
     @Test
     void createBuildsAFreshEntityAndReturnsItMapped() {
-        when(taskRepository.save(any(Task.class)))
+        when(taskRepository.saveAndFlush(any(Task.class)))
                 .thenReturn(Task.builder().id(9L).title("New").completed(true).version(0L).build());
 
         TaskDto created = taskService.create(request("New", true, null));
@@ -66,14 +66,14 @@ class TaskServiceTest {
 
     @Test
     void createIgnoresAnyIdOrVersionOnTheRequestSoItCannotMergeIntoAnExistingRow() {
-        when(taskRepository.save(any(Task.class)))
+        when(taskRepository.saveAndFlush(any(Task.class)))
                 .thenReturn(Task.builder().id(9L).title("New").completed(false).version(0L).build());
 
         TaskDto hostile = TaskDto.builder().id(777L).title("New").completed(false).version(42L).build();
         taskService.create(hostile);
 
         ArgumentCaptor<Task> saved = ArgumentCaptor.forClass(Task.class);
-        verify(taskRepository).save(saved.capture());
+        verify(taskRepository).saveAndFlush(saved.capture());
         assertThat(saved.getValue().getId())
                 .as("a null id is what makes save() an insert rather than a merge")
                 .isNull();
@@ -121,12 +121,12 @@ class TaskServiceTest {
     @Test
     void updateReplacesTheMutableFieldsAndLeavesIdentityAlone() {
         when(taskRepository.findById(1L)).thenReturn(Optional.of(persisted));
-        when(taskRepository.save(any(Task.class))).thenAnswer(call -> call.getArgument(0));
+        when(taskRepository.saveAndFlush(any(Task.class))).thenAnswer(call -> call.getArgument(0));
 
         taskService.update(1L, request("Renamed", true, null));
 
         ArgumentCaptor<Task> saved = ArgumentCaptor.forClass(Task.class);
-        verify(taskRepository).save(saved.capture());
+        verify(taskRepository).saveAndFlush(saved.capture());
         assertThat(saved.getValue().getTitle()).isEqualTo("Renamed");
         assertThat(saved.getValue().isCompleted()).isTrue();
         assertThat(saved.getValue().getId())
@@ -137,7 +137,7 @@ class TaskServiceTest {
     @Test
     void updateProceedsWhenTheSuppliedVersionMatches() {
         when(taskRepository.findById(1L)).thenReturn(Optional.of(persisted));
-        when(taskRepository.save(any(Task.class))).thenAnswer(call -> call.getArgument(0));
+        when(taskRepository.saveAndFlush(any(Task.class))).thenAnswer(call -> call.getArgument(0));
 
         assertThatNoException().isThrownBy(() -> taskService.update(1L, request("Renamed", true, 3L)));
     }
@@ -149,18 +149,18 @@ class TaskServiceTest {
         assertThatExceptionOfType(OptimisticLockingFailureException.class)
                 .isThrownBy(() -> taskService.update(1L, request("Renamed", true, 1L)));
 
-        verify(taskRepository, never()).save(any(Task.class));
+        verify(taskRepository, never()).saveAndFlush(any(Task.class));
     }
 
     @Test
     void updateWaivesThePreconditionWhenNoVersionIsSupplied() {
         when(taskRepository.findById(1L)).thenReturn(Optional.of(persisted));
-        when(taskRepository.save(any(Task.class))).thenAnswer(call -> call.getArgument(0));
+        when(taskRepository.saveAndFlush(any(Task.class))).thenAnswer(call -> call.getArgument(0));
 
         // Waived here, but still enforced by the @Version column at flush -
         // see TaskConcurrencyIT.
         assertThatNoException().isThrownBy(() -> taskService.update(1L, request("Renamed", true, null)));
-        verify(taskRepository, times(1)).save(any(Task.class));
+        verify(taskRepository, times(1)).saveAndFlush(any(Task.class));
     }
 
     @Test
@@ -170,7 +170,7 @@ class TaskServiceTest {
         assertThatExceptionOfType(ResourceNotFoundException.class)
                 .isThrownBy(() -> taskService.update(404L, request("Renamed", true, 99L)));
 
-        verify(taskRepository, never()).save(any(Task.class));
+        verify(taskRepository, never()).saveAndFlush(any(Task.class));
     }
 
     @Test

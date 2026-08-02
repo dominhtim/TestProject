@@ -155,7 +155,7 @@ class TaskConcurrencyIT {
      * Omitting the version waives the precondition, so a second write based on
      * an older read is still accepted - but only because these two writes do
      * not overlap. It is not an opt-out from optimistic locking: see
-     * {@link #omittingTheVersionStillLosesToAConcurrentWriter}.
+     * {@link #omittingTheVersionStillAccountsForEveryWrite}.
      */
     @Test
     void omittingTheVersionWaivesThePreconditionForSequentialWrites() throws Exception {
@@ -168,13 +168,23 @@ class TaskConcurrencyIT {
                 .isEqualTo("Second unconditional edit");
     }
 
+    /**
+     * Without a supplied version there is no fixed number of winners, and an
+     * earlier version of this test was wrong to assert one. Every writer here
+     * waives the precondition, so a writer whose transaction begins after
+     * another has committed reads the newer version and legitimately
+     * succeeds - three of eight did. Conversely, if the eight happened to
+     * serialise completely, all eight would succeed, so asserting "at least
+     * one conflict" would be flaky rather than merely wrong.
+     * <p>
+     * What holds regardless of timing is the property actually worth having:
+     * every success is accounted for by exactly one version increment, so no
+     * write was silently swallowed by another.
+     */
     @Test
-    void omittingTheVersionStillLosesToAConcurrentWriter() throws Exception {
+    void omittingTheVersionStillAccountsForEveryWrite() throws Exception {
         long id = idOf(createTask("Contended, unconditionally"));
 
-        // Nobody sends a version, so assertVersionIsCurrent is a no-op for
-        // all of them - yet Hibernate's own check at flush still serialises
-        // the writes, so only one can commit.
         CyclicBarrier startTogether = new CyclicBarrier(CONCURRENT_WRITERS);
         List<Callable<Integer>> writers = new ArrayList<>();
         for (int writer = 0; writer < CONCURRENT_WRITERS; writer++) {
@@ -186,11 +196,13 @@ class TaskConcurrencyIT {
         }
 
         List<Integer> statuses = runConcurrently(writers);
+        long winners = statuses.stream().filter(status -> status == 200).count();
 
-        assertThat(statuses).allMatch(status -> status == 200 || status == 409);
-        assertThat(statuses.stream().filter(status -> status == 200).count())
-                .as("omitting the version is not an opt-out from optimistic locking")
-                .isEqualTo(1);
-        assertThat(taskRepository.findById(id).orElseThrow().getVersion()).isEqualTo(1L);
+        assertThat(statuses)
+                .as("every writer must get a definitive answer, not a 500")
+                .allMatch(status -> status == 200 || status == 409);
+        assertThat(taskRepository.findById(id).orElseThrow().getVersion())
+                .as("one version bump per accepted write, none per rejected one")
+                .isEqualTo(winners);
     }
 }

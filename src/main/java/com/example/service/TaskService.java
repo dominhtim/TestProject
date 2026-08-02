@@ -48,7 +48,7 @@ public class TaskService {
      */
     @Transactional
     public TaskDto create(TaskDto request) {
-        Task savedTask = taskRepository.save(Task.builder()
+        Task savedTask = taskRepository.saveAndFlush(Task.builder()
                 .title(request.getTitle())
                 .completed(request.isCompleted())
                 .build());
@@ -71,6 +71,13 @@ public class TaskService {
      * Full replacement of the mutable fields, inside one transaction so the
      * read and the write cannot be interleaved with another writer's. The
      * request's {@code version}, if present, is a precondition.
+     * <p>
+     * {@code saveAndFlush}, not {@code save}: Hibernate increments the version
+     * column when it flushes, which for a plain {@code save} is at commit -
+     * after this method has already mapped the entity. The response would
+     * then carry the pre-increment version, telling the caller its write had
+     * not happened. Flushing here also moves the optimistic-lock failure
+     * inside this method rather than into transaction commit.
      */
     @Transactional
     public TaskDto update(Long id, TaskDto request) {
@@ -80,7 +87,7 @@ public class TaskService {
         existingTask.setTitle(request.getTitle());
         existingTask.setCompleted(request.isCompleted());
 
-        Task updatedTask = taskRepository.save(existingTask);
+        Task updatedTask = taskRepository.saveAndFlush(existingTask);
         log.info("Updated task id={} completed={} version={}",
                 updatedTask.getId(), updatedTask.isCompleted(), updatedTask.getVersion());
         return TaskDto.from(updatedTask);

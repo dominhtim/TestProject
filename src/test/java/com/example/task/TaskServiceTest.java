@@ -136,15 +136,20 @@ class TaskServiceTest {
         when(taskRepository.findById(1L)).thenReturn(Optional.of(persisted));
         when(taskRepository.saveAndFlush(any(Task.class))).thenAnswer(call -> call.getArgument(0));
 
-        assertThatNoException().isThrownBy(() -> taskService.update(1L, request("Renamed", true, 3L)));
+        // Built outside the lambda so only the call under test can throw.
+        TaskDto matchingVersion = request("Renamed", true, 3L);
+
+        assertThatNoException().isThrownBy(() -> taskService.update(1L, matchingVersion));
     }
 
     @Test
     void updateRejectsAStaleSuppliedVersionWithoutWriting() {
         when(taskRepository.findById(1L)).thenReturn(Optional.of(persisted));
 
+        TaskDto staleVersion = request("Renamed", true, 1L);
+
         assertThatExceptionOfType(OptimisticLockingFailureException.class)
-                .isThrownBy(() -> taskService.update(1L, request("Renamed", true, 1L)));
+                .isThrownBy(() -> taskService.update(1L, staleVersion));
 
         verify(taskRepository, never()).saveAndFlush(any(Task.class));
     }
@@ -154,9 +159,11 @@ class TaskServiceTest {
         when(taskRepository.findById(1L)).thenReturn(Optional.of(persisted));
         when(taskRepository.saveAndFlush(any(Task.class))).thenAnswer(call -> call.getArgument(0));
 
+        TaskDto withoutVersion = request("Renamed", true, null);
+
         // Waived here, but still enforced by the @Version column at flush -
         // see TaskConcurrencyIT.
-        assertThatNoException().isThrownBy(() -> taskService.update(1L, request("Renamed", true, null)));
+        assertThatNoException().isThrownBy(() -> taskService.update(1L, withoutVersion));
         verify(taskRepository, times(1)).saveAndFlush(any(Task.class));
     }
 
@@ -164,8 +171,10 @@ class TaskServiceTest {
     void updateReportsNotFoundBeforeCheckingTheVersion() {
         when(taskRepository.findById(404L)).thenReturn(Optional.empty());
 
+        TaskDto changes = request("Renamed", true, 99L);
+
         assertThatExceptionOfType(ResourceNotFoundException.class)
-                .isThrownBy(() -> taskService.update(404L, request("Renamed", true, 99L)));
+                .isThrownBy(() -> taskService.update(404L, changes));
 
         verify(taskRepository, never()).saveAndFlush(any(Task.class));
     }

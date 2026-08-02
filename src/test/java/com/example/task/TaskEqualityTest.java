@@ -62,8 +62,9 @@ class TaskEqualityTest {
         Task first = Task.builder().title("Identical").completed(true).build();
         Task second = Task.builder().title("Identical").completed(true).build();
 
-        assertThat(first).isEqualTo(first);
         assertThat(first)
+                .as("an instance is always equal to itself")
+                .isEqualTo(first)
                 .as("field-based equality would call these the same task")
                 .isNotEqualTo(second);
     }

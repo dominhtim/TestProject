@@ -1,5 +1,6 @@
 package com.example.shared.error;
 
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.TypeMismatchException;
@@ -133,12 +134,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     /**
      * Field names come from the DTO, never from the submitted value, so this
      * cannot echo attacker-controlled content back to the caller.
+     * <p>
+     * The {@code @Nullable} return mirrors {@link ResponseEntityExceptionHandler},
+     * whose package is {@code @NullMarked}; overriding without it declares a
+     * contract incompatible with the supertype. These three overrides never
+     * actually return null.
      */
     @Override
-    protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException exception,
-                                                                  HttpHeaders headers,
-                                                                  HttpStatusCode status,
-                                                                  WebRequest request) {
+    protected @Nullable ResponseEntity<Object> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException exception,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request) {
         List<FieldError> fieldErrors = exception.getBindingResult().getFieldErrors();
         Map<String, String> errors = new LinkedHashMap<>();
         for (FieldError fieldError : fieldErrors) {
@@ -153,10 +160,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     /** The default detail can include a fragment of the offending JSON and the target Java type. */
     @Override
-    protected ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException exception,
-                                                                  HttpHeaders headers,
-                                                                  HttpStatusCode status,
-                                                                  WebRequest request) {
+    protected @Nullable ResponseEntity<Object> handleHttpMessageNotReadable(
+            HttpMessageNotReadableException exception,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request) {
         log.debug("Unreadable request body: {}", exception.getMessage());
 
         return asResponse(badRequest("Malformed request body",
@@ -168,10 +176,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      * whose default detail names the target type and the failed converter.
      */
     @Override
-    protected ResponseEntity<Object> handleTypeMismatch(TypeMismatchException exception,
-                                                        HttpHeaders headers,
-                                                        HttpStatusCode status,
-                                                        WebRequest request) {
+    protected @Nullable ResponseEntity<Object> handleTypeMismatch(
+            TypeMismatchException exception,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request) {
         log.debug("Type mismatch binding request parameter: {}", exception.getMessage());
 
         return asResponse(badRequest("Invalid parameter",

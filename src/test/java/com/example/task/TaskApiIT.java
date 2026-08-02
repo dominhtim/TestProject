@@ -54,10 +54,11 @@ class TaskApiIT {
                 .returnResult();
 
         Map<String, Object> created = createResult.getResponseBody();
-        assertThat(created).isNotNull();
+        assertThat(created)
+                .isNotNull()
+                .containsEntry("title", "Ship the release")
+                .containsEntry("version", 0);
         Long id = ((Number) created.get("id")).longValue();
-        assertThat(created).containsEntry("title", "Ship the release");
-        assertThat(created).containsEntry("version", 0);
 
         URI location = createResult.getResponseHeaders().getLocation();
         assertThat(location)

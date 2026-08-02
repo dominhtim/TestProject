@@ -3,6 +3,7 @@ package com.example.shared.error;
 import lombok.Getter;
 
 import java.io.Serial;
+import java.io.Serializable;
 
 /**
  * Raised when a lookup by id finds nothing.
@@ -20,9 +21,17 @@ public class ResourceNotFoundException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
     private final String resourceType;
-    private final Object resourceId;
 
-    public ResourceNotFoundException(String resourceType, Object resourceId) {
+    /**
+     * {@link Serializable}, not {@code Object}: this exception is itself
+     * serializable, so a field the compiler cannot prove serializable would
+     * break that (SonarQube java:S1948). Declaring the bound is the honest
+     * fix - marking it {@code transient} would silence the rule by making
+     * getResourceId() return null after any round trip.
+     */
+    private final Serializable resourceId;
+
+    public ResourceNotFoundException(String resourceType, Serializable resourceId) {
         super("No " + resourceType + " with id " + resourceId);
         this.resourceType = resourceType;
         this.resourceId = resourceId;

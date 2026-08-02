@@ -25,26 +25,20 @@
         <springdoc.version>3.0.3</springdoc.version>
         <jacoco.version>0.8.15</jacoco.version>
         <sonar-maven-plugin.version>5.7.0.6970</sonar-maven-plugin.version>
-        <!-- Two reports feed Sonar: unit tests (surefire) write
-             jacoco/jacoco.xml, integration tests (failsafe) write
-             jacoco-it/jacoco.xml (see jacoco-maven-plugin executions below).
-             Omitting either would understate coverage - much of this app's
-             coverage comes from TaskApiIT exercising the full HTTP stack. -->
+        <!-- Both reports are needed: much of this app's coverage comes from
+             the integration tests exercising the full HTTP stack, so omitting
+             jacoco-it would understate it. -->
         <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml,${project.build.directory}/site/jacoco-it/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
         <!-- Mirrors the JaCoCo <excludes> below for the same class. -->
         <sonar.coverage.exclusions>**/MySpringAppApplication.java</sonar.coverage.exclusions>
 
-        <!-- Security: Dependabot alerts #84/#86/#87/#88 (jackson-databind
-             CVEs, fixed in 2.18.9/2.21.5/2.22.1 for Jackson 2, 3.1.4 for
-             Jackson 3 - see GHSA-5jmj-h7xm-6q6v). Jackson 3's jackson-databind
-             is only a transitive dependency here (via
-             spring-boot-starter-jackson) and isn't self-contained: it needs a
-             matching jackson-core, and still borrows jackson-annotations from
-             the 2.x line (Jackson has no separate 3.x annotations module).
-             Pinning jackson-databind alone left jackson-annotations mismatched
-             and broke serialization at runtime (NoClassDefFoundError:
-             JsonApplyView). Importing Jackson's own BOM below keeps the whole
-             Jackson 3 stack internally consistent instead. -->
+        <!-- Security: jackson-databind CVEs (Dependabot #84/#86/#87/#88,
+             GHSA-5jmj-h7xm-6q6v). Do not pin jackson-databind on its own: it
+             needs a matching jackson-core and still borrows
+             jackson-annotations from the 2.x line, and pinning it alone left
+             annotations mismatched and broke serialization at runtime
+             (NoClassDefFoundError: JsonApplyView). The BOM import below keeps
+             the whole Jackson 3 stack consistent. -->
         <jackson2-databind.version>2.22.0</jackson2-databind.version>
         <jackson3-bom.version>3.2.0</jackson3-bom.version>
     </properties>
@@ -115,27 +109,22 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
-        <!-- Explicit health module: defense-in-depth per the official
-             recommendation following CVE-2026-40976 (a security filter chain
-             bypass affecting actuator without spring-boot-health), even
-             though 4.1.0 is already patched. -->
+        <!-- Explicit health module: defence-in-depth per the advisory for
+             CVE-2026-40976 (actuator filter chain bypass), even though 4.1.0
+             is already patched. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-health</artifactId>
         </dependency>
 
-        <!-- On the classpath, this is enough for Spring Boot to
-             auto-configure /actuator/prometheus (once exposed, see
-             application.properties). -->
+        <!-- Enough on the classpath to auto-configure /actuator/prometheus. -->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
 
-        <!-- Bridges Micrometer to OpenTelemetry and exports spans via OTLP
-             (to Jaeger locally). Boot 4.1's spring-boot-starter-opentelemetry
-             isn't yet on a final 4.1.0 release, so its constituent modules are
-             declared directly, matching what the starter's own POM pulls in. -->
+        <!-- Boot 4.1's spring-boot-starter-opentelemetry isn't on a final
+             4.1.0 release, so its constituent modules are declared directly. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-micrometer-metrics</artifactId>
@@ -208,12 +197,9 @@
             </exclusions>
         </dependency>
 
-        <!-- Boot 4's auto-configured JSON mapper is Jackson 3
-             (tools.jackson...JsonMapper), not this. Needed on the main
-             classpath because TaskControllerUnitTest builds request bodies
-             with a plain Jackson 2 ObjectMapper, and springdoc (above) uses
-             Jackson 2 internally - spring-boot-starter-jackson alone doesn't
-             bring it. -->
+        <!-- Jackson 2, which Boot 4 does not auto-configure (its mapper is
+             Jackson 3's JsonMapper). On the main classpath because springdoc
+             above needs it at runtime; the unit tests use it too. -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
@@ -232,8 +218,12 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
+                    <!-- <release>, not <source>/<target>: those still compile
+                         against the running JDK's class library, so a newer
+                         build JDK than runtime yields NoSuchMethodError in
+                         production rather than a build failure. The Dockerfile
+                         built with JDK 26 for a JRE 25 runtime. -->
+                    <release>${java.version}</release>
                     <!-- springdoc-openapi needs parameter names in bytecode
                          to resolve them in the generated API docs. -->
                     <parameters>true</parameters>
@@ -270,17 +260,15 @@
                 </executions>
             </plugin>
 
-            <!-- Instruments both unit and integration tests; reports feed
-                 SonarQube Cloud via sonar.coverage.jacoco.xmlReportPaths
-                 above. -->
+            <!-- Instruments both suites; reports feed Sonar via
+                 sonar.coverage.jacoco.xmlReportPaths above. -->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>${jacoco.version}</version>
                 <configuration>
-                    <!-- Excluded: main() is a single SpringApplication.run()
-                         call, and every @SpringBootTest already boots the
-                         full context and proves the wiring works. -->
+                    <!-- main() is one SpringApplication.run() call, and every
+                         @SpringBootTest already proves the wiring works. -->
                     <excludes>
                         <exclude>**/MySpringAppApplication.class</exclude>
                     </excludes>
@@ -309,10 +297,8 @@
                 </executions>
             </plugin>
 
-            <!-- Not bound to any lifecycle phase - invoked explicitly via
-                 `mvn sonar:sonar` in CI, after `verify` produces the JaCoCo
-                 report. Project key/organization/token are passed as -D
-                 flags in CI rather than hardcoded here. -->
+            <!-- Unbound - invoked explicitly via `mvn sonar:sonar` in CI after
+                 `verify`. Key/org/token are passed as -D flags, not hardcoded. -->
             <plugin>
                 <groupId>org.sonarsource.scanner.maven</groupId>
                 <artifactId>sonar-maven-plugin</artifactId>

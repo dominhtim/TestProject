@@ -135,10 +135,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      * Field names come from the DTO, never from the submitted value, so this
      * cannot echo attacker-controlled content back to the caller.
      * <p>
-     * The {@code @Nullable} return mirrors {@link ResponseEntityExceptionHandler},
-     * whose package is {@code @NullMarked}; overriding without it declares a
-     * contract incompatible with the supertype. These three overrides never
-     * actually return null.
+     * The {@code @Nullable} return on this and the two overrides below
+     * mirrors the supertype's declaration; see package-info for why the
+     * package is null-marked. None of the three ever returns null.
      */
     @Override
     protected @Nullable ResponseEntity<Object> handleMethodArgumentNotValid(

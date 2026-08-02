@@ -12,25 +12,25 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
+import java.net.URI;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * End-to-end test for the Task API: boots the full Spring Boot app on a
- * random port and exercises it over real HTTP via {@link RestTestClient}
- * (the Spring Boot 4 / Spring Framework 7 replacement for
- * {@code TestRestTemplate}), unlike the mocked-repository
- * {@code TaskControllerUnitTest}.
- * <p>
- * Named with the {@code IT} suffix so maven-failsafe-plugin picks it up
- * during {@code mvn verify}, separate from the fast {@code mvn test} run.
+ * The full app on a random port, exercised over real HTTP via
+ * {@link RestTestClient} (Boot 4's replacement for {@code TestRestTemplate}).
+ * The {@code IT} suffix puts it in failsafe's {@code mvn verify} run rather
+ * than the fast {@code mvn test} one.
  */
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @AutoConfigureRestTestClient
 class TaskApiIT {
 
     private static final String API_V1_TASKS = "/api/v1/tasks";
+
+    private static final ParameterizedTypeReference<Map<String, Object>> JSON_OBJECT =
+            new ParameterizedTypeReference<>() {};
 
     @Autowired
     private RestTestClient restClient;
@@ -45,46 +45,55 @@ class TaskApiIT {
 
     @Test
     void shouldSupportFullCrudLifecycleOverRealHttp() {
-        // Read the response as a Map rather than TaskDto: id is
-        // @JsonProperty(access = READ_ONLY) on TaskDto, so Jackson would
-        // refuse to deserialize it back out of the response body even
-        // though it's genuinely present on the wire.
+        // A Map, not TaskDto: id is READ_ONLY on the DTO, so Jackson won't
+        // deserialize it back out even though it's there on the wire.
         TaskDto newTask = TaskDto.builder().title("Ship the release").completed(false).build();
-        Map<String, Object> created = restClient.post().uri(API_V1_TASKS)
+        var createResult = restClient.post().uri(API_V1_TASKS)
                 .body(newTask)
                 .exchange()
-                .expectStatus().isOk()
-                .expectBody(new ParameterizedTypeReference<Map<String, Object>>() {})
-                .returnResult()
-                .getResponseBody();
+                .expectStatus().isCreated()
+                .expectBody(JSON_OBJECT)
+                .returnResult();
 
+        Map<String, Object> created = createResult.getResponseBody();
         assertThat(created).isNotNull();
         Long id = ((Number) created.get("id")).longValue();
-        assertThat(id).isNotNull();
         assertThat(created).containsEntry("title", "Ship the release");
+        assertThat(created).containsEntry("version", 0);
 
-        restClient.get().uri(API_V1_TASKS)
-                .exchange()
-                .expectStatus().isOk()
-                .expectBody()
-                .jsonPath("$.length()").isEqualTo(1);
+        URI location = createResult.getResponseHeaders().getLocation();
+        assertThat(location)
+                .as("201 Created must point at the new resource")
+                .isNotNull();
+        assertThat(location.getPath()).endsWith(API_V1_TASKS + "/" + id);
 
-        restClient.get().uri(API_V1_TASKS + "/{id}", id)
+        // The Location header is not decorative - it has to resolve.
+        restClient.get().uri(location.getPath())
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.title").isEqualTo("Ship the release");
 
-        TaskDto updateDetails = TaskDto.builder().id(id).title("Ship the release (done)").completed(true).build();
+        restClient.get().uri(API_V1_TASKS)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.content.length()").isEqualTo(1)
+                .jsonPath("$.page.totalElements").isEqualTo(1);
+
+        TaskDto updateDetails = TaskDto.builder().title("Ship the release (done)").completed(true).build();
         Map<String, Object> updated = restClient.put().uri(API_V1_TASKS + "/{id}", id)
                 .body(updateDetails)
                 .exchange()
                 .expectStatus().isOk()
-                .expectBody(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .expectBody(JSON_OBJECT)
                 .returnResult()
                 .getResponseBody();
 
-        assertThat(updated).isNotNull().containsEntry("completed", true);
+        assertThat(updated).isNotNull()
+                .containsEntry("completed", true)
+                .as("the optimistic lock counter must advance on write")
+                .containsEntry("version", 1);
 
         restClient.delete().uri(API_V1_TASKS + "/{id}", id)
                 .exchange()
@@ -96,20 +105,73 @@ class TaskApiIT {
     }
 
     @Test
-    void shouldRejectInvalidTaskWithBadRequest() {
+    void shouldPaginateRatherThanReturningEveryRow() {
+        for (int index = 0; index < 25; index++) {
+            restClient.post().uri(API_V1_TASKS)
+                    .body(TaskDto.builder().title("Task " + index).build())
+                    .exchange()
+                    .expectStatus().isCreated();
+        }
+
+        // Default page size is 20, so 25 rows must not all come back at once.
+        restClient.get().uri(API_V1_TASKS)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.content.length()").isEqualTo(20)
+                .jsonPath("$.page.totalElements").isEqualTo(25)
+                .jsonPath("$.page.totalPages").isEqualTo(2);
+
+        restClient.get().uri(API_V1_TASKS + "?page=1&size=20")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.content.length()").isEqualTo(5)
+                .jsonPath("$.page.number").isEqualTo(1);
+    }
+
+    @Test
+    void shouldCapAnOversizedPageSizeRequest() {
+        // Without max-page-size this is an unauthenticated way to ask the
+        // server to materialise the whole table.
+        restClient.get().uri(API_V1_TASKS + "?size=100000")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.page.size").isEqualTo(100);
+    }
+
+    @Test
+    void shouldRejectInvalidTaskWithProblemDetail() {
         TaskDto blankTitleTask = TaskDto.builder().title("  ").completed(false).build();
 
         restClient.post().uri(API_V1_TASKS)
                 .body(blankTitleTask)
                 .exchange()
-                .expectStatus().isBadRequest();
+                .expectStatus().isBadRequest()
+                .expectBody()
+                .jsonPath("$.title").isEqualTo("Validation failed")
+                .jsonPath("$.errors.title").isEqualTo("Title is mandatory");
     }
 
     @Test
-    void shouldReturn404ForUnknownTask() {
+    void shouldReturn404ProblemDetailForUnknownTask() {
         restClient.get().uri(API_V1_TASKS + "/{id}", 999_999L)
                 .exchange()
-                .expectStatus().isNotFound();
+                .expectStatus().isNotFound()
+                .expectBody()
+                .jsonPath("$.title").isEqualTo("Task not found")
+                .jsonPath("$.resourceType").isEqualTo("Task")
+                .jsonPath("$.resourceId").isEqualTo(999_999);
+    }
+
+    @Test
+    void shouldReturn400WithoutLeakingInternalsForANonNumericId() {
+        restClient.get().uri(API_V1_TASKS + "/{id}", "not-a-number")
+                .exchange()
+                .expectStatus().isBadRequest()
+                .expectBody()
+                .jsonPath("$.detail").isEqualTo("A request parameter has the wrong type.");
     }
 
     @Test
@@ -122,7 +184,7 @@ class TaskApiIT {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(minimalPayload)
                 .exchange()
-                .expectStatus().isOk()
+                .expectStatus().isCreated()
                 .expectBody(TaskDto.class)
                 .returnResult()
                 .getResponseBody();
@@ -130,5 +192,6 @@ class TaskApiIT {
         assertThat(created).isNotNull();
         assertThat(created.getTitle()).isEqualTo("Buy groceries");
         assertThat(created.isCompleted()).isFalse();
+        assertThat(created.getVersion()).isZero();
     }
 }

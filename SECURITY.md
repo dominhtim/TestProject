@@ -33,6 +33,28 @@ Actuator endpoints that return sensitive data (`env`, `configprops`,
 `heapdump`, etc.) or deploy this beyond local/demo use, put Spring Security
 in front of `/actuator/**` first.
 
+## Before Adding Spring Security
+
+`GlobalExceptionHandler` ends with a catch-all `@ExceptionHandler(Exception.class)`
+that maps anything unclassified to a 500. Exceptions carrying their own HTTP
+status are matched by more specific handlers first, so this is correct today —
+but Spring Security's `AccessDeniedException` carries no status and implements
+no marker interface, so it would land in the catch-all and be reported as
+**500 instead of 403**, with a stack trace logged at ERROR for what is a
+routine authorization outcome.
+
+The handler cannot be written before the class is on the classpath. When you
+add `spring-boot-starter-security`, add this at the same time:
+
+```java
+@ExceptionHandler(AccessDeniedException.class)
+public ProblemDetail handleAccessDenied(AccessDeniedException exception) {
+    // 403, and deliberately no detail about what was being protected.
+}
+```
+
+`AuthenticationException` needs the same treatment for 401.
+
 ## Reporting a Vulnerability
 
 If you discover a security vulnerability in this project, please report it

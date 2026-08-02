@@ -2,70 +2,71 @@ package com.example.controller;
 
 import com.example.dto.TaskDto;
 import com.example.model.Task;
-import com.example.repository.TaskRepository;
+import com.example.service.TaskService;
+import com.example.web.SortablePropertyValidator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PagedModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.util.List;
-import java.util.Optional;
+import java.net.URI;
+import java.util.Set;
 
 /**
- * Implements {@link TaskApi} - see there for the mappings, request binding,
- * and OpenAPI response documentation. Speaks {@link TaskDto} over the wire,
- * never the {@link Task} JPA entity directly (see TaskDto's Javadoc for why),
- * mapping to/from the entity internally.
+ * Implements {@link TaskApi}: HTTP in, HTTP out. Every decision belongs to
+ * {@link TaskService}, which owns the transaction boundary, the write rules
+ * and the entity mapping - this class never touches {@link Task}.
  */
 @RestController
 @RequiredArgsConstructor
 public class TaskController implements TaskApi {
 
-    private final TaskRepository taskRepository;
+    /**
+     * Sort keys this API exposes. Anything else is a 400, not a 500 - and
+     * sorting by a column the DTO does not expose would leak its ordering.
+     * {@code version} is omitted deliberately: it is a concurrency token, not
+     * a meaningful ordering.
+     * <p>
+     * Package-private so {@code SortablePropertiesTest} can check every name
+     * against the entity; these are string literals the compiler cannot
+     * otherwise tie to {@link Task}'s fields.
+     */
+    static final Set<String> SORTABLE_PROPERTIES = Set.of("id", "title", "completed");
+
+    private final TaskService taskService;
 
     @Override
     public ResponseEntity<TaskDto> createTask(TaskDto request) {
-        Task newTask = Task.builder()
-                .title(request.getTitle())
-                .completed(request.isCompleted())
-                .build();
+        TaskDto created = taskService.create(request);
 
-        Task savedTask = taskRepository.save(newTask);
-        return ResponseEntity.ok(TaskDto.from(savedTask));
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(created.getId())
+                .toUri();
+        return ResponseEntity.created(location).body(created);
     }
 
     @Override
-    public List<TaskDto> getAllTasks() {
-        return taskRepository.findAll().stream()
-                .map(TaskDto::from)
-                .toList();
+    public ResponseEntity<PagedModel<TaskDto>> getAllTasks(Pageable pageable) {
+        SortablePropertyValidator.assertSortableOnly(pageable.getSort(), SORTABLE_PROPERTIES);
+        return ResponseEntity.ok(new PagedModel<>(taskService.findAll(pageable)));
     }
 
     @Override
     public ResponseEntity<TaskDto> getTaskById(Long id) {
-        Optional<Task> found = taskRepository.findById(id);
-        return found.map(task -> ResponseEntity.ok(TaskDto.from(task)))
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        return ResponseEntity.ok(taskService.findById(id));
     }
 
     @Override
     public ResponseEntity<TaskDto> updateTask(Long id, TaskDto request) {
-        return taskRepository.findById(id)
-                .map(existingTask -> {
-                    existingTask.setTitle(request.getTitle());
-                    existingTask.setCompleted(request.isCompleted());
-                    Task updatedTask = taskRepository.save(existingTask);
-                    return ResponseEntity.ok(TaskDto.from(updatedTask));
-                })
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        return ResponseEntity.ok(taskService.update(id, request));
     }
 
     @Override
     public ResponseEntity<Void> deleteTask(Long id) {
-        return taskRepository.findById(id)
-                .map(task -> {
-                    taskRepository.delete(task);
-                    return ResponseEntity.noContent().<Void>build();
-                })
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        taskService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }

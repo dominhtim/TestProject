@@ -1,171 +1,396 @@
 package com.example.controller;
 
 import com.example.dto.TaskDto;
+import com.example.exception.ResourceNotFoundException;
 import com.example.model.Task;
-import com.example.repository.TaskRepository;
+import com.example.service.TaskService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.Arrays;
-import java.util.Optional;
+import java.util.List;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Controller-level unit test: {@code @WebMvcTest} loads only TaskController
- * with TaskRepository mocked, so requests use {@link TaskDto} while the mock
- * deals in the {@link Task} entity, matching TaskController's mapping.
+ * The HTTP surface with {@link TaskService} mocked: status codes, headers,
+ * response bodies, request validation, sort screening, and which service
+ * calls do and don't happen. {@code @ControllerAdvice} beans load in this
+ * slice, so GlobalExceptionHandler is exercised here too.
+ * <p>
+ * The service now maps entities itself, so nothing here sees {@link Task} at
+ * all. Atomicity and optimistic locking belong to {@code TaskServiceTest},
+ * {@code TaskPersistenceIT} and {@code TaskConcurrencyIT}.
  */
 @WebMvcTest(TaskController.class)
 class TaskControllerUnitTest {
 
     private static final String API_V1_TASKS = "/api/v1/tasks";
+    private static final String PROBLEM_JSON = "application/problem+json";
 
     @Autowired
     private MockMvc mockMvc;
 
-    // Built directly rather than autowired: Spring Boot 4's autoconfigured
-    // JSON mapper bean is Jackson 3's JsonMapper, not this (Jackson 2)
-    // ObjectMapper type, so there's no guarantee a matching bean exists in
-    // the context.
+    // Built directly, not autowired: Boot 4's mapper bean is Jackson 3's
+    // JsonMapper, so no bean of this type is guaranteed to exist.
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @MockitoBean
-    private TaskRepository taskRepository;
+    private TaskService taskService;
 
-    private final Task task1 = Task.builder().id(1L).title("Unit Test Task 1").completed(false).build();
-    private final Task task2 = Task.builder().id(2L).title("Unit Test Task 2").completed(true).build();
+    private final TaskDto dto1 =
+            TaskDto.builder().id(1L).title("Unit Test Task 1").completed(false).version(0L).build();
+    private final TaskDto dto2 =
+            TaskDto.builder().id(2L).title("Unit Test Task 2").completed(true).version(3L).build();
 
-    @Test
-    void shouldCreateTask() throws Exception {
-        when(taskRepository.save(any(Task.class))).thenReturn(task1);
-
-        TaskDto request = TaskDto.builder().title("Unit Test Task 1").completed(false).build();
-
-        mockMvc.perform(post(API_V1_TASKS)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id", is(1)))
-                .andExpect(jsonPath("$.title", is("Unit Test Task 1")));
-
-        verify(taskRepository, times(1)).save(any(Task.class));
+    private String json(Object value) throws Exception {
+        return objectMapper.writeValueAsString(value);
     }
 
-    @Test
-    void shouldReturnBadRequestOnCreateIfTitleIsMissing() throws Exception {
-        TaskDto invalidRequest = TaskDto.builder().title(" ").completed(false).build();
-
-        mockMvc.perform(post(API_V1_TASKS)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(invalidRequest)))
-                .andExpect(status().isBadRequest());
-
-        verify(taskRepository, never()).save(any(Task.class));
+    private static ResourceNotFoundException taskNotFound(long id) {
+        return new ResourceNotFoundException("Task", id);
     }
 
-    @Test
-    void shouldGetAllTasks() throws Exception {
-        when(taskRepository.findAll()).thenReturn(Arrays.asList(task1, task2));
+    @Nested
+    @DisplayName("POST /api/v1/tasks")
+    class CreateTask {
 
-        mockMvc.perform(get(API_V1_TASKS))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(2)))
-                .andExpect(jsonPath("$[0].title", is(task1.getTitle())));
+        @Test
+        void shouldReturn201WithLocationHeaderAndBody() throws Exception {
+            when(taskService.create(any(TaskDto.class))).thenReturn(dto1);
 
-        verify(taskRepository, times(1)).findAll();
+            TaskDto request = TaskDto.builder().title("Unit Test Task 1").completed(false).build();
+
+            mockMvc.perform(post(API_V1_TASKS)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json(request)))
+                    .andExpect(status().isCreated())
+                    .andExpect(header().string("Location", endsWith("/api/v1/tasks/1")))
+                    .andExpect(jsonPath("$.id", is(1)))
+                    .andExpect(jsonPath("$.title", is("Unit Test Task 1")))
+                    .andExpect(jsonPath("$.version", is(0)));
+
+            verify(taskService, times(1)).create(any(TaskDto.class));
+        }
+
+        @Test
+        void shouldRejectBlankTitleWithProblemDetail() throws Exception {
+            TaskDto invalidRequest = TaskDto.builder().title(" ").completed(false).build();
+
+            mockMvc.perform(post(API_V1_TASKS)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json(invalidRequest)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(content().contentTypeCompatibleWith(PROBLEM_JSON))
+                    .andExpect(jsonPath("$.title", is("Validation failed")))
+                    .andExpect(jsonPath("$.errors.title", is("Title is mandatory")));
+
+            verify(taskService, never()).create(any(TaskDto.class));
+        }
+
+        @Test
+        void shouldRejectMissingTitleWithProblemDetail() throws Exception {
+            mockMvc.perform(post(API_V1_TASKS)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"completed\":true}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errors.title", is("Title is mandatory")));
+
+            verify(taskService, never()).create(any(TaskDto.class));
+        }
+
+        @Test
+        void shouldRejectOverlongTitle() throws Exception {
+            TaskDto tooLong = TaskDto.builder().title("x".repeat(Task.TITLE_MAX_LENGTH + 1)).build();
+
+            mockMvc.perform(post(API_V1_TASKS)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json(tooLong)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errors.title", containsString("at most 255")));
+
+            verify(taskService, never()).create(any(TaskDto.class));
+        }
+
+        @Test
+        void shouldRejectMalformedJsonWithoutLeakingParserDetail() throws Exception {
+            mockMvc.perform(post(API_V1_TASKS)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{ this is not json"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.title", is("Malformed request body")))
+                    .andExpect(jsonPath("$.detail", is("The request body is missing or is not valid JSON.")));
+
+            verify(taskService, never()).create(any(TaskDto.class));
+        }
+
+        @Test
+        void shouldNotBindAClientSuppliedId() throws Exception {
+            when(taskService.create(any(TaskDto.class))).thenReturn(dto1);
+
+            // id is READ_ONLY on the DTO, so it never reaches the service;
+            // TaskServiceTest covers the service ignoring it as well.
+            mockMvc.perform(post(API_V1_TASKS)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"id\":9999,\"title\":\"Unit Test Task 1\"}"))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.id", is(1)));
+        }
     }
 
-    @Test
-    void shouldGetTaskById() throws Exception {
-        when(taskRepository.findById(1L)).thenReturn(Optional.of(task1));
+    @Nested
+    @DisplayName("GET /api/v1/tasks")
+    class ListTasks {
 
-        mockMvc.perform(get(API_V1_TASKS + "/{id}", 1L))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id", is(1)))
-                .andExpect(jsonPath("$.title", is(task1.getTitle())));
+        @Test
+        void shouldReturnPagedEnvelope() throws Exception {
+            when(taskService.findAll(any(Pageable.class)))
+                    .thenReturn(new PageImpl<>(List.of(dto1, dto2), PageRequest.of(0, 20), 2));
 
-        verify(taskRepository, times(1)).findById(1L);
+            mockMvc.perform(get(API_V1_TASKS))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content", hasSize(2)))
+                    .andExpect(jsonPath("$.content[0].title", is(dto1.getTitle())))
+                    .andExpect(jsonPath("$.page.totalElements", is(2)))
+                    .andExpect(jsonPath("$.page.number", is(0)));
+
+            verify(taskService, times(1)).findAll(any(Pageable.class));
+        }
+
+        @Test
+        void shouldReturnEmptyContentArrayWhenNoTasksExist() throws Exception {
+            when(taskService.findAll(any(Pageable.class)))
+                    .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+
+            mockMvc.perform(get(API_V1_TASKS))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content", hasSize(0)))
+                    .andExpect(jsonPath("$.page.totalElements", is(0)));
+        }
+
+        @Test
+        void shouldAcceptAnAllowlistedSortProperty() throws Exception {
+            when(taskService.findAll(any(Pageable.class)))
+                    .thenReturn(new PageImpl<>(List.of(dto1), PageRequest.of(0, 20), 1));
+
+            mockMvc.perform(get(API_V1_TASKS + "?sort=title,desc"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content", hasSize(1)));
+
+            verify(taskService, times(1)).findAll(any(Pageable.class));
+        }
+
+        @Test
+        void shouldRejectAnUnknownSortPropertyAsBadRequestNotServerError() throws Exception {
+            // Unscreened, this reaches the criteria builder and fails there,
+            // which the generic handler would report as a 500.
+            mockMvc.perform(get(API_V1_TASKS + "?sort=nonexistentField"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(content().contentTypeCompatibleWith(PROBLEM_JSON))
+                    .andExpect(jsonPath("$.title", is("Invalid sort property")))
+                    .andExpect(jsonPath("$.property", is("nonexistentField")))
+                    .andExpect(jsonPath("$.sortableProperties", hasSize(3)));
+
+            verify(taskService, never()).findAll(any(Pageable.class));
+        }
+
+        @Test
+        void shouldRejectAnUnknownSortPropertyEvenAlongsideAValidOne() throws Exception {
+            mockMvc.perform(get(API_V1_TASKS + "?sort=title&sort=secretColumn"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.property", is("secretColumn")));
+
+            verify(taskService, never()).findAll(any(Pageable.class));
+        }
+
+        @Test
+        void shouldRejectSortingByVersionWhichIsDeliberatelyNotExposed() throws Exception {
+            mockMvc.perform(get(API_V1_TASKS + "?sort=version"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.property", is("version")));
+
+            verify(taskService, never()).findAll(any(Pageable.class));
+        }
     }
 
-    @Test
-    void shouldReturn404IfTaskNotFound() throws Exception {
-        when(taskRepository.findById(999L)).thenReturn(Optional.empty());
+    @Nested
+    @DisplayName("GET /api/v1/tasks/{id}")
+    class GetTaskById {
 
-        mockMvc.perform(get(API_V1_TASKS + "/{id}", 999L))
-                .andExpect(status().isNotFound());
+        @Test
+        void shouldReturnTask() throws Exception {
+            when(taskService.findById(1L)).thenReturn(dto1);
 
-        verify(taskRepository, times(1)).findById(999L);
+            mockMvc.perform(get(API_V1_TASKS + "/{id}", 1L))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id", is(1)))
+                    .andExpect(jsonPath("$.title", is(dto1.getTitle())));
+
+            verify(taskService, times(1)).findById(1L);
+        }
+
+        @Test
+        void shouldReturn404ProblemDetailWhenAbsent() throws Exception {
+            when(taskService.findById(999L)).thenThrow(taskNotFound(999L));
+
+            mockMvc.perform(get(API_V1_TASKS + "/{id}", 999L))
+                    .andExpect(status().isNotFound())
+                    .andExpect(content().contentTypeCompatibleWith(PROBLEM_JSON))
+                    .andExpect(jsonPath("$.title", is("Task not found")))
+                    .andExpect(jsonPath("$.resourceType", is("Task")))
+                    .andExpect(jsonPath("$.resourceId", is(999)));
+        }
+
+        @Test
+        void shouldReturn400ForNonNumericIdWithoutLeakingTypeNames() throws Exception {
+            mockMvc.perform(get(API_V1_TASKS + "/{id}", "not-a-number"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.title", is("Invalid parameter")))
+                    .andExpect(jsonPath("$.detail", is("A request parameter has the wrong type.")));
+
+            verify(taskService, never()).findById(any());
+        }
     }
 
-    @Test
-    void shouldUpdateTask() throws Exception {
-        TaskDto updateRequest = TaskDto.builder().id(1L).title("Updated Title").completed(true).build();
-        Task updatedEntity = Task.builder().id(1L).title("Updated Title").completed(true).build();
+    @Nested
+    @DisplayName("PUT /api/v1/tasks/{id}")
+    class UpdateTask {
 
-        when(taskRepository.findById(1L)).thenReturn(Optional.of(task1));
-        when(taskRepository.save(any(Task.class))).thenReturn(updatedEntity);
+        @Test
+        void shouldUpdateAndReturnTheNewVersion() throws Exception {
+            TaskDto updateRequest = TaskDto.builder().title("Updated Title").completed(true).build();
+            TaskDto updated =
+                    TaskDto.builder().id(1L).title("Updated Title").completed(true).version(1L).build();
 
-        mockMvc.perform(put(API_V1_TASKS + "/{id}", 1L)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updateRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.title", is("Updated Title")))
-                .andExpect(jsonPath("$.completed", is(true)));
+            when(taskService.update(eq(1L), any(TaskDto.class))).thenReturn(updated);
 
-        verify(taskRepository, times(1)).findById(1L);
-        verify(taskRepository, times(1)).save(any(Task.class));
+            mockMvc.perform(put(API_V1_TASKS + "/{id}", 1L)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json(updateRequest)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.title", is("Updated Title")))
+                    .andExpect(jsonPath("$.completed", is(true)))
+                    .andExpect(jsonPath("$.version", is(1)));
+        }
+
+        @Test
+        void shouldReturn409WhenTheServiceReportsAStaleVersion() throws Exception {
+            TaskDto staleRequest = TaskDto.builder().title("Stale writer").completed(true).version(1L).build();
+
+            when(taskService.update(eq(2L), any(TaskDto.class)))
+                    .thenThrow(new OptimisticLockingFailureException("version 1 is stale"));
+
+            mockMvc.perform(put(API_V1_TASKS + "/{id}", 2L)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json(staleRequest)))
+                    .andExpect(status().isConflict())
+                    .andExpect(content().contentTypeCompatibleWith(PROBLEM_JSON))
+                    .andExpect(jsonPath("$.title", is("Concurrent modification")));
+        }
+
+        @Test
+        void shouldReturn404WhenTaskAbsent() throws Exception {
+            TaskDto updateRequest = TaskDto.builder().title("Non-existent").completed(true).build();
+
+            when(taskService.update(eq(999L), any(TaskDto.class))).thenThrow(taskNotFound(999L));
+
+            mockMvc.perform(put(API_V1_TASKS + "/{id}", 999L)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json(updateRequest)))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.resourceId", is(999)));
+        }
+
+        @Test
+        void shouldRejectBlankTitleBeforeReachingTheService() throws Exception {
+            TaskDto invalidRequest = TaskDto.builder().title("   ").completed(true).build();
+
+            mockMvc.perform(put(API_V1_TASKS + "/{id}", 1L)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json(invalidRequest)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errors.title", is("Title is mandatory")));
+
+            verify(taskService, never()).update(any(), any(TaskDto.class));
+        }
     }
 
-    @Test
-    void shouldReturn404OnUpdateIfTaskNotFound() throws Exception {
-        TaskDto updateRequest = TaskDto.builder().id(999L).title("Non-existent").completed(true).build();
+    @Nested
+    @DisplayName("DELETE /api/v1/tasks/{id}")
+    class DeleteTask {
 
-        when(taskRepository.findById(999L)).thenReturn(Optional.empty());
+        @Test
+        void shouldReturn204AndDelete() throws Exception {
+            doNothing().when(taskService).delete(1L);
 
-        mockMvc.perform(put(API_V1_TASKS + "/{id}", 999L)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updateRequest)))
-                .andExpect(status().isNotFound());
+            mockMvc.perform(delete(API_V1_TASKS + "/{id}", 1L))
+                    .andExpect(status().isNoContent())
+                    .andExpect(content().string(""));
 
-        verify(taskRepository, times(1)).findById(999L);
-        verify(taskRepository, never()).save(any(Task.class));
+            verify(taskService, times(1)).delete(1L);
+        }
+
+        @Test
+        void shouldReturn404WhenTaskAbsent() throws Exception {
+            doThrow(taskNotFound(999L)).when(taskService).delete(999L);
+
+            mockMvc.perform(delete(API_V1_TASKS + "/{id}", 999L))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.title", is("Task not found")));
+        }
+
+        @Test
+        void shouldReturn409WhenTheVersionedDeleteLosesToAConcurrentWrite() throws Exception {
+            doThrow(new OptimisticLockingFailureException("row changed")).when(taskService).delete(1L);
+
+            mockMvc.perform(delete(API_V1_TASKS + "/{id}", 1L))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.title", is("Concurrent modification")));
+        }
     }
 
-    @Test
-    void shouldDeleteTask() throws Exception {
-        when(taskRepository.findById(1L)).thenReturn(Optional.of(task1));
-        doNothing().when(taskRepository).delete(any(Task.class));
+    @Nested
+    @DisplayName("Unexpected failures")
+    class UnexpectedFailures {
 
-        mockMvc.perform(delete(API_V1_TASKS + "/{id}", 1L))
-                .andExpect(status().isNoContent());
+        @Test
+        void shouldReturn500ProblemDetailWithoutLeakingTheExceptionMessage() throws Exception {
+            when(taskService.findById(1L))
+                    .thenThrow(new IllegalStateException("connection string: jdbc://secret-host/db"));
 
-        verify(taskRepository, times(1)).findById(1L);
-        verify(taskRepository, times(1)).delete(task1);
-    }
-
-    @Test
-    void shouldReturn404OnDeleteIfTaskNotFound() throws Exception {
-        when(taskRepository.findById(999L)).thenReturn(Optional.empty());
-
-        mockMvc.perform(delete(API_V1_TASKS + "/{id}", 999L))
-                .andExpect(status().isNotFound());
-
-        verify(taskRepository, times(1)).findById(999L);
-        verify(taskRepository, never()).delete(any(Task.class));
+            mockMvc.perform(get(API_V1_TASKS + "/{id}", 1L))
+                    .andExpect(status().isInternalServerError())
+                    .andExpect(jsonPath("$.title", is("Internal server error")))
+                    .andExpect(jsonPath("$.detail", is("An unexpected error occurred.")));
+        }
     }
 }

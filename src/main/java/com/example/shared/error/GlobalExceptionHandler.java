@@ -45,6 +45,17 @@ import java.util.Map;
  * thrown in a servlet Filter. Those are served by Spring Boot's
  * BasicErrorController and are governed by the {@code spring.web.error.*}
  * properties instead.
+ * <p>
+ * <strong>On the java:S2638 suppressions below.</strong> The rule reports the
+ * three overrides as changing the supertype's nullability contract. They do
+ * not: {@link ResponseEntityExceptionHandler} declares each of them as
+ * {@code protected @Nullable ResponseEntity<Object>} with the identical
+ * parameter list, importing the same {@code org.jspecify.annotations.Nullable}
+ * these overrides use, so the declarations match exactly. The rule reported
+ * them identically with the annotation absent, with it present, and with this
+ * package explicitly {@code @NullMarked} - it is not responding to anything in
+ * this file. Most likely the analyzer cannot resolve Spring's package-level
+ * {@code @NullMarked} from inside the jar. Re-check on a Sonar upgrade.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
@@ -135,11 +146,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      * Field names come from the DTO, never from the submitted value, so this
      * cannot echo attacker-controlled content back to the caller.
      * <p>
-     * The {@code @Nullable} return on this and the two overrides below
-     * mirrors the supertype's declaration; see package-info for why the
-     * package is null-marked. None of the three ever returns null.
+     * The {@code @Nullable} return on this and the two overrides below is
+     * copied verbatim from {@link ResponseEntityExceptionHandler}, down to the
+     * same {@code org.jspecify} annotation. None of the three ever returns
+     * null. See the class Javadoc for the suppression.
      */
     @Override
+    @SuppressWarnings("java:S2638")
     protected @Nullable ResponseEntity<Object> handleMethodArgumentNotValid(
             MethodArgumentNotValidException exception,
             HttpHeaders headers,
@@ -159,6 +172,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     /** The default detail can include a fragment of the offending JSON and the target Java type. */
     @Override
+    @SuppressWarnings("java:S2638")
     protected @Nullable ResponseEntity<Object> handleHttpMessageNotReadable(
             HttpMessageNotReadableException exception,
             HttpHeaders headers,
@@ -175,6 +189,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      * whose default detail names the target type and the failed converter.
      */
     @Override
+    @SuppressWarnings("java:S2638")
     protected @Nullable ResponseEntity<Object> handleTypeMismatch(
             TypeMismatchException exception,
             HttpHeaders headers,

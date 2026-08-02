@@ -1,14 +1,18 @@
 /**
  * Error handling shared across every feature.
  * <p>
- * Null-marked because {@link
- * org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler}
- * is: its package carries {@code @NullMarked}, so its methods declare
- * non-null parameters and a {@code @Nullable} return. An override living in
- * an unmarked package has <em>unspecified</em> nullness, which cannot be
- * checked against that contract - annotating the override alone does not fix
- * it, because {@code @Nullable} only has defined meaning inside null-marked
- * scope.
+ * Null-marked to match {@link
+ * org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler},
+ * whose package carries {@code @NullMarked} and whose overridable methods
+ * therefore declare non-null parameters and a {@code @Nullable} return. The
+ * three overrides in {@link com.example.shared.error.GlobalExceptionHandler}
+ * mirror that contract exactly.
+ * <p>
+ * Note this did <em>not</em> silence SonarQube java:S2638 on those overrides;
+ * see GlobalExceptionHandler's class Javadoc for why that is a false positive
+ * and where it is suppressed. This annotation stays because declaring the
+ * package's null contract is correct on its own merits, not because it fixed
+ * the warning.
  */
 @NullMarked
 package com.example.shared.error;

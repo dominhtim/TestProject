@@ -40,7 +40,7 @@
              (NoClassDefFoundError: JsonApplyView). The BOM import below keeps
              the whole Jackson 3 stack consistent. -->
         <jackson2-databind.version>2.22.2</jackson2-databind.version>
-        <jackson3-bom.version>3.2.1</jackson3-bom.version>
+        <jackson3-bom.version>3.2.2</jackson3-bom.version>
     </properties>
 
     <dependencyManagement>

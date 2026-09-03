@@ -118,10 +118,19 @@ These cost real debugging time. Do not "simplify" them back.
   (`tools.jackson`, via `spring-boot-starter-jackson`). springdoc still generates its OpenAPI
   spec with Jackson 2 internally (upstream: springdoc/springdoc-openapi#3268), which is why
   `com.fasterxml.jackson.core:jackson-databind` is on the **main** classpath, not just test.
-- **Never pin `jackson-databind` alone.** It needs a matching `jackson-core` and still borrows
-  `jackson-annotations` from the 2.x line; pinning it by itself left annotations mismatched and
-  broke serialization at runtime (`NoClassDefFoundError: JsonApplyView`). The `jackson-bom`
-  import keeps the Jackson 3 stack consistent.
+- **Never pin a single Jackson artifact.** Both lines come from a BOM import, and that is load
+  bearing. Spring Boot manages the whole 2.x stack via its own `jackson-2-bom` (currently
+  2.21.5), so pinning `jackson-databind` on its own pulls one artifact forward and leaves
+  `jackson-core`, `jackson-dataformat-yaml` and `jackson-datatype-jsr310` behind — which is
+  exactly what happened before the 2.x BOM was imported here (databind 2.22.2 against core
+  2.21.5). An earlier version of the same mistake broke serialization outright
+  (`NoClassDefFoundError: JsonApplyView`).
+- The two BOMs overlap on `jackson-annotations` and both pin it to **2.22**, which is the only
+  release in that line, so import order between them does not matter. Re-check that if either
+  BOM moves to a version where the annotations pins diverge.
+- **`mvn verify` does not exercise springdoc**, and springdoc is the only consumer of the
+  Jackson 2.x stack. After any Jackson change, hit `/v3/api-docs` and `/swagger-ui.html` on a
+  running app — the test suite will pass regardless.
 - `spring-boot-starter-web` → **`spring-boot-starter-webmvc`** in Boot 4.
 - Test starters are per-production-starter in Boot 4 (`spring-boot-starter-webmvc-test`,
   `-restclient-test`, `-jackson-test`), each excluding `junit-vintage-engine`.

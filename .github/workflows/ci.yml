@@ -39,28 +39,15 @@ jobs:
           retention-days: 7
 
       - name: Submit dependency graph
-        # Keeps Dependabot alerts accurate. Only needed on the default
-        # branch, not on every PR from a fork.
+        # Keeps Dependabot alerts accurate. Default branch only.
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: advanced-security/maven-dependency-submission-action@b275d12641ac2d2108b2cbb7598b154ad2f2cee8 # v5
 
   code-quality:
     runs-on: ubuntu-latest
     needs: build-and-test
-    # Skipped whenever the Sonar secrets won't resolve, so the scan is skipped
-    # gracefully instead of failing loudly:
-    #
-    #   - PRs from forks cannot read repository secrets at all.
-    #   - Dependabot PRs run against GitHub's separate *Dependabot* secret
-    #     store, so repository Actions secrets resolve to empty and the
-    #     scanner rejects the resulting blank projectKey. Their branches live
-    #     in this repo, so the fork check above does not catch them.
-    #
-    # Neither case loses coverage: build-and-test still runs on every PR, and
-    # the scan runs on the push to main once the change merges. Do not "fix"
-    # this by copying SONAR_TOKEN into the Dependabot secret store - that
-    # would expose it to arbitrary build-plugin code from an unreviewed
-    # dependency bump.
+    # Skipped for fork and Dependabot PRs, whose secrets won't resolve. Do NOT fix by
+    # copying SONAR_TOKEN into the Dependabot secret store.
     if: >-
       github.actor != 'dependabot[bot]' &&
       (github.event_name == 'push' ||
@@ -69,8 +56,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
-          # SonarQube Cloud's "New Code" analysis diffs against history; a
-          # shallow (depth-1) checkout would make every line look "new".
+          # "New Code" diffs against history; a shallow checkout makes every line new.
           fetch-depth: 0
 
       - name: Set up JDK 25 (Temurin)
@@ -87,12 +73,8 @@ jobs:
           key: ${{ runner.os }}-sonar
 
       - name: Build, test, and scan with SonarQube Cloud
-        # Requires SONAR_TOKEN, SONAR_ORGANIZATION, SONAR_PROJECT_KEY as repo
-        # secrets (from the project at sonarcloud.io). Passed via `env`
-        # rather than expanded directly into `run` per SonarQube's own rule
-        # against expanding secrets in a run block - GitHub Actions
-        # substitutes ${{ secrets.* }} into the raw command text before the
-        # shell sees it, which is more exposed than an env var.
+        # Needs SONAR_TOKEN/_ORGANIZATION/_PROJECT_KEY as repo secrets. Passed via
+        # `env`, never expanded into `run`.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # enables PR decoration
           SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}

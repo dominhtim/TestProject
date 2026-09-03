@@ -11,12 +11,7 @@ import lombok.NoArgsConstructor;
 
 import java.util.Objects;
 
-/**
- * Kept separate from the {@link Task} entity per SonarQube rule java:S4684
- * (persistent entities shouldn't be @RequestMapping arguments or return
- * types). {@code @Data} is right here and wrong on Task: this is a detached
- * value object with no persistence identity, so value equality is correct.
- */
+/** Detached value object, so @Data is right here and wrong on Task (java:S4684). */
 @Data
 @NoArgsConstructor
 // Same @JsonCreator(mode = DISABLED) reasoning as Task.java.
@@ -33,16 +28,8 @@ public class TaskDto {
 
     private boolean completed;
 
-    /**
-     * Always present on responses. Optional on a PUT, where it is a
-     * precondition: supply the version you last read and a stale write is
-     * rejected with 409.
-     * <p>
-     * Omitting it waives that precondition - it does not disable optimistic
-     * locking. Hibernate still checks the version column at flush, so two
-     * genuinely concurrent writers can both omit it and the loser still gets
-     * a 409.
-     */
+    /** Always on responses; optional on PUT as a precondition. Omitting it waives the
+     *  precondition, not optimistic locking. */
     private Long version;
 
     public static TaskDto from(Task task) {

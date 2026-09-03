@@ -1,8 +1,5 @@
-// Discovers every container on the local Docker daemon and ships its stdout/
-// stderr to Loki, labeled by container name. Structured JSON logs (see
-// application.properties) come through as-is; Loki indexes labels only, so
-// individual JSON fields stay queryable via LogQL's `| json` parser instead
-// of being indexed up front.
+// Ships every container's stdout/stderr to Loki, labeled by container name.
+// Loki indexes labels only; JSON fields stay queryable via LogQL's `| json`.
 discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
 }

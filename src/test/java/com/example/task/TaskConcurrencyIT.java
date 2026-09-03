@@ -23,16 +23,8 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * The lost-update defence end to end - the one thing neither the mocked unit
- * test nor the single-threaded CRUD test can show. Before {@code @Version}
- * and the transaction boundary, two overlapping {@code PUT}s both returned
- * 200 and one writer's changes vanished silently.
- * <p>
- * Uses the JDK's {@link HttpClient} rather than the injected
- * {@code RestTestClient} because these requests are genuinely parallel and
- * {@code HttpClient} is documented as thread-safe.
- */
+/** The lost-update defence end to end. Uses the JDK HttpClient, not RestTestClient,
+ *  because these requests are genuinely parallel. */
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 class TaskConcurrencyIT {
 
@@ -92,12 +84,8 @@ class TaskConcurrencyIT {
         return statuses;
     }
 
-    /**
-     * Read from the Location header rather than scraped out of the JSON
-     * body: the header is a single unambiguous value, whereas searching the
-     * body for {@code "id":} would silently pick up the first nested object
-     * that happens to have one.
-     */
+    /** From the Location header, not scraped from the body, which would pick up the
+     *  first nested object that happens to have an id. */
     private static long idOf(HttpResponse<String> created) {
         String location = created.headers().firstValue("Location")
                 .orElseThrow(() -> new AssertionError("a 201 response must carry a Location header"));
@@ -123,9 +111,7 @@ class TaskConcurrencyIT {
         assertThat(created.statusCode()).isEqualTo(201);
         long id = idOf(created);
 
-        // Every writer supplies version 0 as a precondition, so once one has
-        // committed the rest are checked against a version that no longer
-        // exists. That makes the winner count deterministic.
+        // Every writer supplies version 0, which makes the winner count deterministic.
         List<Integer> statuses = runConcurrently(writersAll(id, 0L));
 
         assertThat(statuses)
@@ -153,12 +139,8 @@ class TaskConcurrencyIT {
         assertThat(taskRepository.findById(id).orElseThrow().getTitle()).isEqualTo("First edit");
     }
 
-    /**
-     * Omitting the version waives the precondition, so a second write based on
-     * an older read is still accepted - but only because these two writes do
-     * not overlap. It is not an opt-out from optimistic locking: see
-     * {@link #omittingTheVersionStillAccountsForEveryWrite}.
-     */
+    /** Waiving the precondition accepts a second write only because these do not
+     *  overlap. Not an opt-out from optimistic locking. */
     @Test
     void omittingTheVersionWaivesThePreconditionForSequentialWrites() throws Exception {
         long id = idOf(createTask("Unconditional"));
@@ -170,19 +152,8 @@ class TaskConcurrencyIT {
                 .isEqualTo("Second unconditional edit");
     }
 
-    /**
-     * Without a supplied version there is no fixed number of winners, and an
-     * earlier version of this test was wrong to assert one. Every writer here
-     * waives the precondition, so a writer whose transaction begins after
-     * another has committed reads the newer version and legitimately
-     * succeeds. Conversely, if the eight happened to serialise completely,
-     * all eight would succeed - so asserting "at least one conflict" would be
-     * flaky rather than merely wrong.
-     * <p>
-     * What holds regardless of timing is the property actually worth having:
-     * every success is accounted for by exactly one version increment, so no
-     * write was silently swallowed by another.
-     */
+    /** No fixed winner count here, and asserting one is wrong. What holds
+     *  regardless of timing: every success is exactly one version increment. */
     @Test
     void omittingTheVersionStillAccountsForEveryWrite() throws Exception {
         long id = idOf(createTask("Contended, unconditionally"));

@@ -11,25 +11,13 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.net.URI;
 import java.util.Set;
 
-/**
- * Implements {@link TaskApi}: HTTP in, HTTP out. Every decision belongs to
- * {@link TaskService}, which owns the transaction boundary, the write rules
- * and the entity mapping - this class never touches {@link Task}.
- */
+/** HTTP in, HTTP out. Every decision belongs to TaskService; this never touches Task. */
 @RestController
 @RequiredArgsConstructor
 public class TaskController implements TaskApi {
 
-    /**
-     * Sort keys this API exposes. Anything else is a 400, not a 500 - and
-     * sorting by a column the DTO does not expose would leak its ordering.
-     * {@code version} is omitted deliberately: it is a concurrency token, not
-     * a meaningful ordering.
-     * <p>
-     * Package-private so {@code SortablePropertiesTest} can check every name
-     * against the entity; these are string literals the compiler cannot
-     * otherwise tie to {@link Task}'s fields.
-     */
+    /** Allowlist: anything else is a 400, not a 500. Package-private so
+     *  SortablePropertiesTest can check the names against the entity. */
     static final Set<String> SORTABLE_PROPERTIES = Set.of("id", "title", "completed");
 
     private final TaskService taskService;

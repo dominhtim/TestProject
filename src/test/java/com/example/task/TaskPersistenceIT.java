@@ -17,17 +17,8 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * Behaviour only a real Hibernate session shows: the {@code @Version} column
- * advancing, the schema enforcing what Bean Validation claims, and entity
- * identity surviving the transient-to-managed transition.
- * <p>
- * {@code @SpringBootTest} rather than {@code @DataJpaTest} because this
- * project doesn't declare Boot 4's {@code spring-boot-starter-data-jpa-test}.
- * Deliberately not {@code @Transactional}: one test-managed transaction would
- * share a persistence context across every operation, which is exactly what
- * hides version increments and flush-time failures.
- */
+/** Behaviour only a real Hibernate session shows. Deliberately not @Transactional, and
+ *  @SpringBootTest rather than @DataJpaTest. */
 @SpringBootTest
 class TaskPersistenceIT {
 
@@ -61,8 +52,7 @@ class TaskPersistenceIT {
                 Task.builder().title("Contended").completed(false).build());
         Long id = persisted.getId();
 
-        // Simulate the classic lost update: two callers read the same row,
-        // both edit their own copy, both write back.
+        // The classic lost update: two callers read one row, both write back.
         Task firstWriterCopy = taskRepository.findById(id).orElseThrow();
         Task secondWriterCopy = Task.builder()
                 .id(id)
@@ -84,10 +74,8 @@ class TaskPersistenceIT {
 
     @Test
     void aBlankTitleIsRefusedAtThePersistenceLayerToo() {
-        // The entity and column carry the same constraint as the DTO, so a
-        // future path bypassing the API can't write a row the API would
-        // reject. Which exception surfaces depends on whether Hibernate's
-        // validation listener fires before the INSERT - both are correct.
+        // Entity and column carry the DTO's constraint too. Either exception is correct,
+        // depending on whether Hibernate's validation listener fires before the INSERT.
         Task noTitle = Task.builder().completed(false).build();
 
         assertThatThrownBy(() -> taskRepository.saveAndFlush(noTitle))

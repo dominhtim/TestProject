@@ -24,14 +24,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * The write rules, with the repository mocked and no Spring context.
- * <p>
- * These matter most for the version precondition and for create's
- * insert-only guarantee: at the HTTP layer the service is a mock, so a
- * controller test can only assert that a 409 is rendered, never that the
- * rule deciding it is right.
- */
+/** The write rules with the repository mocked. A controller test can only assert a 409
+ *  renders, never that the rule deciding it is right. */
 @ExtendWith(MockitoExtension.class)
 class TaskServiceTest {
 
@@ -161,8 +155,7 @@ class TaskServiceTest {
 
         TaskDto withoutVersion = request("Renamed", true, null);
 
-        // Waived here, but still enforced by the @Version column at flush -
-        // see TaskConcurrencyIT.
+        // Waived here, still enforced by the @Version column at flush.
         assertThatNoException().isThrownBy(() -> taskService.update(1L, withoutVersion));
         verify(taskRepository, times(1)).saveAndFlush(any(Task.class));
     }

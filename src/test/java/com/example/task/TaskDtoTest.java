@@ -16,12 +16,8 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
-/**
- * Validation constraints and entity mapping, driven through {@link Validator}
- * directly. {@link TaskControllerUnitTest} reaches the same constraints, but
- * only one violation at a time; going direct makes the boundary cases cheap
- * enough to cover exhaustively.
- */
+/** Validation and mapping through Validator directly, which makes the boundary cases
+ *  cheap enough to cover exhaustively. */
 class TaskDtoTest {
 
     private static ValidatorFactory validatorFactory;
@@ -118,8 +114,7 @@ class TaskDtoTest {
 
     @Test
     void dtoUsesValueEquality() {
-        // Unlike the entity, whose identity is its id, two DTOs describing
-        // the same payload are interchangeable.
+        // Unlike the entity, two DTOs describing the same payload are interchangeable.
         TaskDto first = TaskDto.builder().id(1L).title("Same").completed(true).version(0L).build();
         TaskDto second = TaskDto.builder().id(1L).title("Same").completed(true).version(0L).build();
 

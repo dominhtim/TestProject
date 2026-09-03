@@ -24,39 +24,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Single exception boundary: every error that reaches a matched controller
- * method leaves as an RFC 9457 problem+json document. Extending
- * {@link ResponseEntityExceptionHandler} is what brings framework-raised
- * exceptions under the same roof; the overrides below only customise the ones
- * whose default detail leaked internals.
- * <p>
- * Detail strings are always fixed text. Exception messages can carry SQL
- * fragments, paths or user data, so they go to the log instead.
- * <p>
- * This class does not grow with the API surface. Every handler below is
- * resource-agnostic, including the not-found one - {@link
- * ResourceNotFoundException} carries its resource type as data rather than
- * as a subclass. A second or tenth controller adds nothing here. Per-
- * controller {@code @ExceptionHandler} methods are what would not scale,
- * since each would repeat the same 400/409/500 mapping.
- * <p>
- * Not covered: anything failing before handler dispatch, such as an exception
- * thrown in a servlet Filter. Those are served by Spring Boot's
- * BasicErrorController and are governed by the {@code spring.web.error.*}
- * properties instead.
- * <p>
- * <strong>On the java:S2638 suppressions below.</strong> The rule reports the
- * three overrides as changing the supertype's nullability contract. They do
- * not: {@link ResponseEntityExceptionHandler} declares each of them as
- * {@code protected @Nullable ResponseEntity<Object>} with the identical
- * parameter list, importing the same {@code org.jspecify.annotations.Nullable}
- * these overrides use, so the declarations match exactly. The rule reported
- * them identically with the annotation absent, with it present, and with this
- * package explicitly {@code @NullMarked} - it is not responding to anything in
- * this file. Most likely the analyzer cannot resolve Spring's package-level
- * {@code @NullMarked} from inside the jar. Re-check on a Sonar upgrade.
- */
+/** Single exception boundary: every error leaves as RFC 9457 problem+json, with fixed
+ *  detail text. Resource-agnostic, so it does not grow with the API. */
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
@@ -91,11 +60,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem;
     }
 
-    /**
-     * Two races land here: Hibernate's, when the version column moved between
-     * our read and our flush, and TaskService's, when the caller sent a
-     * version that was already stale. Same remedy either way.
-     */
+    /** Two races land here - Hibernate's and TaskService's. Same remedy either way. */
     @ExceptionHandler(OptimisticLockingFailureException.class)
     public ProblemDetail handleOptimisticLockingFailure(OptimisticLockingFailureException exception) {
         log.warn("Concurrent modification rejected: {}", exception.getMessage());
@@ -107,10 +72,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem;
     }
 
-    /**
-     * Bean Validation should catch these first, so reaching here means
-     * validation and schema have drifted apart - hence WARN with the cause.
-     */
+    /** Reaching here means validation and schema have drifted apart - hence WARN. */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ProblemDetail handleDataIntegrityViolation(DataIntegrityViolationException exception) {
         log.warn("Database constraint violation", exception);
@@ -118,19 +80,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return badRequest("Constraint violation", "The request violates a data constraint.", TYPE_CONSTRAINT);
     }
 
-    /**
-     * Last resort. Exceptions carrying their own status are matched by more
-     * specific handlers first - {@link ResponseEntityExceptionHandler} claims
-     * {@code ErrorResponseException} and everything below it, including
-     * {@code ResponseStatusException} - so reaching here means genuinely
-     * unclassified.
-     * <p>
-     * Watch this when adding Spring Security: {@code AccessDeniedException}
-     * carries no status and implements no marker interface, so it would land
-     * here and be reported as 500 rather than 403. It needs its own handler
-     * at that point, which cannot be written until the class is on the
-     * classpath. See SECURITY.md.
-     */
+    /** Last resort - anything with its own status is matched earlier. Adding Spring
+     *  Security needs an AccessDeniedException handler here. */
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleUnexpected(Exception exception) {
         log.error("Unhandled exception serving request", exception);
@@ -142,15 +93,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem;
     }
 
-    /**
-     * Field names come from the DTO, never from the submitted value, so this
-     * cannot echo attacker-controlled content back to the caller.
-     * <p>
-     * The {@code @Nullable} return on this and the two overrides below is
-     * copied verbatim from {@link ResponseEntityExceptionHandler}, down to the
-     * same {@code org.jspecify} annotation. None of the three ever returns
-     * null. See the class Javadoc for the suppression.
-     */
+    /** Field names come from the DTO, never the submitted value. The @Nullable return is
+     *  copied from the supertype; none of the three overrides returns null. */
     @Override
     @SuppressWarnings("java:S2638")
     protected @Nullable ResponseEntity<Object> handleMethodArgumentNotValid(
@@ -170,7 +114,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return asResponse(problem);
     }
 
-    /** The default detail can include a fragment of the offending JSON and the target Java type. */
+    /** The default detail can leak a fragment of the JSON and the target Java type. */
     @Override
     @SuppressWarnings("java:S2638")
     protected @Nullable ResponseEntity<Object> handleHttpMessageNotReadable(
@@ -184,10 +128,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 "The request body is missing or is not valid JSON.", TYPE_VALIDATION));
     }
 
-    /**
-     * Covers MethodArgumentTypeMismatchException, e.g. GET /api/v1/tasks/abc,
-     * whose default detail names the target type and the failed converter.
-     */
+    /** Covers e.g. GET /api/v1/tasks/abc, whose default detail names internals. */
     @Override
     @SuppressWarnings("java:S2638")
     protected @Nullable ResponseEntity<Object> handleTypeMismatch(

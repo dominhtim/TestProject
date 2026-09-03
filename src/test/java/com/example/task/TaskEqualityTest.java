@@ -7,18 +7,8 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * A regression guard, not a test of Object's behaviour.
- * <p>
- * Task deliberately inherits identity equality (see its Javadoc). Every
- * assertion here holds trivially today and breaks the moment someone
- * reintroduces field-based equality - putting {@code @Data} back on the
- * entity, or generating equals/hashCode from the IDE. That is the failure
- * these exist to catch, and it is silent otherwise.
- * <p>
- * {@link TaskPersistenceIT} makes the same check against a real Hibernate
- * session.
- */
+/** Regression guard: every assertion holds trivially today and breaks if field-based
+ *  equality returns to Task. TaskPersistenceIT checks the same against Hibernate. */
 class TaskEqualityTest {
 
     @Test
@@ -46,8 +36,7 @@ class TaskEqualityTest {
 
     @Test
     void transientEntityRemainsFindableInAHashSetAfterIdAssignment() {
-        // The exact failure mode @Data caused: the set is searched in the
-        // bucket for the old hash, and the entity has moved.
+        // The exact @Data failure: searched in the old hash's bucket, entity has moved.
         Task task = Task.builder().title("Ship it").build();
         Set<Task> tasks = new HashSet<>();
         tasks.add(task);

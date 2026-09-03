@@ -38,16 +38,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * The HTTP surface with {@link TaskService} mocked: status codes, headers,
- * response bodies, request validation, sort screening, and which service
- * calls do and don't happen. {@code @ControllerAdvice} beans load in this
- * slice, so GlobalExceptionHandler is exercised here too.
- * <p>
- * The service maps entities itself, so nothing here sees {@link Task}.
- * Atomicity and optimistic locking belong to {@link TaskServiceTest},
- * {@link TaskPersistenceIT} and {@link TaskConcurrencyIT}.
- */
+/** The HTTP surface with TaskService mocked. @ControllerAdvice loads in this slice, so
+ *  GlobalExceptionHandler is exercised here too. */
 @WebMvcTest(TaskController.class)
 class TaskControllerUnitTest {
 
@@ -57,8 +49,7 @@ class TaskControllerUnitTest {
     @Autowired
     private MockMvc mockMvc;
 
-    // Built directly, not autowired: Boot 4's mapper bean is Jackson 3's
-    // JsonMapper, so no bean of this type is guaranteed to exist.
+    // Built directly: Boot 4's mapper bean is Jackson 3's, so no bean of this type.
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @MockitoBean
@@ -154,8 +145,7 @@ class TaskControllerUnitTest {
         void shouldNotBindAClientSuppliedId() throws Exception {
             when(taskService.create(any(TaskDto.class))).thenReturn(dto1);
 
-            // id is READ_ONLY on the DTO, so it never reaches the service;
-            // TaskServiceTest covers the service ignoring it as well.
+            // id is READ_ONLY, so it never reaches the service. TaskServiceTest too.
             mockMvc.perform(post(API_V1_TASKS)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{\"id\":9999,\"title\":\"Unit Test Task 1\"}"))
@@ -208,8 +198,7 @@ class TaskControllerUnitTest {
 
         @Test
         void shouldRejectAnUnknownSortPropertyAsBadRequestNotServerError() throws Exception {
-            // Unscreened, this reaches the criteria builder and fails there,
-            // which the generic handler would report as a 500.
+            // Unscreened this fails in the criteria builder and reports as a 500.
             mockMvc.perform(get(API_V1_TASKS + "?sort=nonexistentField"))
                     .andExpect(status().isBadRequest())
                     .andExpect(content().contentTypeCompatibleWith(PROBLEM_JSON))

@@ -21,23 +21,13 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Handlers driven directly, for the paths HTTP tests cannot reach.
- * <p>
- * Two of these are branches rather than endpoints: a {@code FieldError} with
- * no default message, and two violations landing on the same field. Neither
- * can be produced by sending a request, because the constraints on TaskDto
- * always supply a message and never both fire on one field. The third,
- * {@link DataIntegrityViolationException}, is only reachable through the web
- * layer if validation and schema have already drifted apart - which is
- * exactly when you want the handler to have been tested.
- */
+/** Handlers driven directly, for the branches HTTP tests cannot reach. */
 class GlobalExceptionHandlerTest {
 
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
     private final WebRequest request = new ServletWebRequest(new MockHttpServletRequest());
 
-    /** Only exists to give {@link MethodParameter} something real to point at. */
+    /** Only exists to give MethodParameter something real to point at. */
     @SuppressWarnings("unused")
     private void bindingTarget(TaskDto body) {
         // no-op

@@ -6,8 +6,7 @@ on:
   pull_request:
     branches: [ main ]
   schedule:
-    # Weekly scan to catch newly disclosed vulnerability patterns even
-    # when no code changes.
+    # Weekly, to catch newly disclosed patterns with no code change.
     - cron: '30 3 * * 1'
 
 permissions:

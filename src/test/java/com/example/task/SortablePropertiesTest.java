@@ -10,16 +10,8 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * {@code SORTABLE_PROPERTIES} is a set of string literals that must match
- * {@link Task}'s field names, and nothing in the compiler ties the two
- * together. Rename a field and the endpoint starts rejecting a sort that
- * used to work, silently and only at runtime.
- * <p>
- * This turns that into a build failure. It is the cheap alternative to the
- * JPA static metamodel, which would give real compile-time safety at the
- * cost of an annotation processor.
- */
+/** Ties SORTABLE_PROPERTIES' string literals to Task's field names, so a rename is a
+ *  build failure instead of a silent runtime one. */
 class SortablePropertiesTest {
 
     @Test

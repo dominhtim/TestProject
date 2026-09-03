@@ -29,7 +29,7 @@ public class TaskDto {
     private boolean completed;
 
     /** Always on responses; optional on PUT as a precondition. Omitting it waives the
-     *  precondition, not optimistic locking. See CLAUDE.md. */
+     *  precondition, not optimistic locking. */
     private Long version;
 
     public static TaskDto from(Task task) {

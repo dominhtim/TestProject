@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-test
     # Skipped for fork and Dependabot PRs, whose secrets won't resolve. Do NOT fix by
-    # copying SONAR_TOKEN into the Dependabot secret store - see CLAUDE.md.
+    # copying SONAR_TOKEN into the Dependabot secret store.
     if: >-
       github.actor != 'dependabot[bot]' &&
       (github.event_name == 'push' ||
@@ -74,7 +74,7 @@ jobs:
 
       - name: Build, test, and scan with SonarQube Cloud
         # Needs SONAR_TOKEN/_ORGANIZATION/_PROJECT_KEY as repo secrets. Passed via
-        # `env`, never expanded into `run`. See CLAUDE.md.
+        # `env`, never expanded into `run`.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # enables PR decoration
           SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}

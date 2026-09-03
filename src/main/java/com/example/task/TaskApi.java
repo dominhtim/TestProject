@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 /** Mappings, binding and OpenAPI docs, kept off TaskController. Failure statuses are
- *  documented here but produced by GlobalExceptionHandler. See CLAUDE.md. */
+ *  documented here but produced by GlobalExceptionHandler. */
 @RequestMapping("/api/v1/tasks")
 public interface TaskApi {
 

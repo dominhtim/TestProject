@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 /** Single exception boundary: every error leaves as RFC 9457 problem+json, with fixed
- *  detail text. Resource-agnostic, so it does not grow with the API. See CLAUDE.md. */
+ *  detail text. Resource-agnostic, so it does not grow with the API. */
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
@@ -81,7 +81,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /** Last resort - anything with its own status is matched earlier. Adding Spring
-     *  Security needs an AccessDeniedException handler here. See CLAUDE.md. */
+     *  Security needs an AccessDeniedException handler here. */
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleUnexpected(Exception exception) {
         log.error("Unhandled exception serving request", exception);

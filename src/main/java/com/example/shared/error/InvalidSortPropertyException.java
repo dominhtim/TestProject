@@ -7,7 +7,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /** Client asked to sort by a non-sortable property. Unscreened this is a 500 from the
- *  criteria builder, and orders by columns the API does not expose. See CLAUDE.md. */
+ *  criteria builder, and orders by columns the API does not expose. */
 @Getter
 public class InvalidSortPropertyException extends RuntimeException {
 

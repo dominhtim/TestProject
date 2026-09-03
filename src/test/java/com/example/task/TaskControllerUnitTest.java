@@ -39,7 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** The HTTP surface with TaskService mocked. @ControllerAdvice loads in this slice, so
- *  GlobalExceptionHandler is exercised here too. See CLAUDE.md. */
+ *  GlobalExceptionHandler is exercised here too. */
 @WebMvcTest(TaskController.class)
 class TaskControllerUnitTest {
 

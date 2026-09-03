@@ -17,7 +17,7 @@ import java.util.Set;
 public class TaskController implements TaskApi {
 
     /** Allowlist: anything else is a 400, not a 500. Package-private so
-     *  SortablePropertiesTest can check the names against the entity. See CLAUDE.md. */
+     *  SortablePropertiesTest can check the names against the entity. */
     static final Set<String> SORTABLE_PROPERTIES = Set.of("id", "title", "completed");
 
     private final TaskService taskService;

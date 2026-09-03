@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The lost-update defence end to end. Uses the JDK HttpClient, not RestTestClient,
- *  because these requests are genuinely parallel. See CLAUDE.md. */
+ *  because these requests are genuinely parallel. */
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 class TaskConcurrencyIT {
 
@@ -152,7 +152,7 @@ class TaskConcurrencyIT {
                 .isEqualTo("Second unconditional edit");
     }
 
-    /** No fixed winner count here, and asserting one is wrong - see CLAUDE.md. What holds
+    /** No fixed winner count here, and asserting one is wrong. What holds
      *  regardless of timing: every success is exactly one version increment. */
     @Test
     void omittingTheVersionStillAccountsForEveryWrite() throws Exception {

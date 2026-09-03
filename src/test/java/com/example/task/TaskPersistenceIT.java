@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Behaviour only a real Hibernate session shows. Deliberately not @Transactional, and
- *  @SpringBootTest rather than @DataJpaTest. See CLAUDE.md. */
+ *  @SpringBootTest rather than @DataJpaTest. */
 @SpringBootTest
 class TaskPersistenceIT {
 

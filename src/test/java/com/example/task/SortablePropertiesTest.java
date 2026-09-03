@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Ties SORTABLE_PROPERTIES' string literals to Task's field names, so a rename is a
- *  build failure instead of a silent runtime one. See CLAUDE.md. */
+ *  build failure instead of a silent runtime one. */
 class SortablePropertiesTest {
 
     @Test

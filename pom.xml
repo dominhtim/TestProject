@@ -31,7 +31,7 @@
         <sonar.coverage.exclusions>**/MySpringAppApplication.java</sonar.coverage.exclusions>
 
         <!-- Never pin jackson-databind alone; the BOM import keeps the stack
-             consistent. See CLAUDE.md. -->
+             consistent. -->
         <jackson2-databind.version>2.22.2</jackson2-databind.version>
         <jackson3-bom.version>3.2.1</jackson3-bom.version>
     </properties>
@@ -96,7 +96,7 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
-        <!-- Defence-in-depth per the CVE-2026-40976 advisory. See CLAUDE.md. -->
+        <!-- Defence-in-depth per the CVE-2026-40976 advisory. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-health</artifactId>
@@ -195,7 +195,8 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <!-- <release>, not <source>/<target>. See CLAUDE.md. -->
+                    <!-- <release>, not <source>/<target>: those compile against the
+                         running JDK's class library, not the target's. -->
                     <release>${java.version}</release>
                     <!-- springdoc needs parameter names in bytecode. -->
                     <parameters>true</parameters>

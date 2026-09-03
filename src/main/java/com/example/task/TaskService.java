@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Objects;
 
-/** Transaction boundary and write rules. Returns TaskDto, never Task - see CLAUDE.md. */
+/** Transaction boundary and write rules. Returns TaskDto, never Task. */
 @Service
 @RequiredArgsConstructor
 public class TaskService {
@@ -46,7 +46,7 @@ public class TaskService {
     }
 
     /** Full replacement; request version is a precondition. saveAndFlush so the response
-     *  carries the incremented version and the lock failure lands here. See CLAUDE.md. */
+     *  carries the incremented version and the lock failure lands here. */
     @Transactional
     public TaskDto update(Long id, TaskDto request) {
         Task existingTask = requireTask(id);

@@ -21,7 +21,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Handlers driven directly, for the branches HTTP tests cannot reach. See CLAUDE.md. */
+/** Handlers driven directly, for the branches HTTP tests cannot reach. */
 class GlobalExceptionHandlerTest {
 
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler();

@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
-/** Identity equality on purpose: no @Data, no hand-written equals/hashCode. See CLAUDE.md. */
+/** Identity equality on purpose: no @Data, no hand-written equals/hashCode. */
 @Entity
 @Getter
 @Setter

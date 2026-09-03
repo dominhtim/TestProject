@@ -83,7 +83,10 @@
         <!-- H2 web console auto-configuration, split out of the raw h2
              dependency in Boot 4. There is no "spring-boot-starter-h2-console"
              wrapper despite some pre-release docs referencing one; without
-             this module spring.h2.console.enabled has no effect. -->
+             this module spring.h2.console.enabled has no effect. Kept at
+             compile scope even though the console is off outside the dev
+             profile - the autoconfiguration is gated on that property, so
+             the console is not served unless dev is active. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-h2console</artifactId>

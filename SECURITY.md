@@ -33,6 +33,32 @@ Actuator endpoints that return sensitive data (`env`, `configprops`,
 `heapdump`, etc.) or deploy this beyond local/demo use, put Spring Security
 in front of `/actuator/**` first.
 
+## H2 Console Exposure
+
+The H2 web console is **not enabled by default**. It is confined to the `dev`
+profile ([`application-dev.properties`](src/main/resources/application-dev.properties)),
+which `docker-compose.yml` sets for the local stack; the image the
+`Dockerfile` builds starts with it off unless `SPRING_PROFILES_ACTIVE=dev` is
+passed in.
+
+This matters more than "a console for the demo database" suggests. H2's
+console is a generic JDBC client: its login form accepts an arbitrary url,
+user, password and driver, so it is not scoped to `taskdb`, and reaching it
+unauthenticated is a code-execution-class exposure rather than a
+data-disclosure one. The `dev` profile also sets
+`spring.h2.console.settings.web-allow-others=true`, which disables H2's own
+local-only check — needed because Docker's port forwarding makes requests
+arrive via NAT rather than loopback, but it is a workaround, not a mitigation.
+
+The runtime image (`eclipse-temurin:25-jre-alpine`) ships no `javac`, which
+closes the H2 alias path that compiles Java source at runtime. Aliases bound
+to existing static methods do not need a compiler, so treat this as narrowing
+the surface, not removing it.
+
+Do not enable the `dev` profile on any network you do not fully control. If
+the console is ever needed somewhere less trusted, put Spring Security in
+front of `/h2-console/**` first.
+
 ## Before Adding Spring Security
 
 `GlobalExceptionHandler` ends with a catch-all `@ExceptionHandler(Exception.class)`

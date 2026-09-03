@@ -17,6 +17,9 @@ services:
     ports:
       - "8080:8080"
     environment:
+      # Turns on the H2 console (application-dev.properties). Deliberately set
+      # here rather than in the image, so only this local stack gets it.
+      - SPRING_PROFILES_ACTIVE=dev
       # Send traces to the Jaeger container by its service name (reachable
       # over the default compose network), rather than the localhost
       # default in application.properties (which assumes you're running

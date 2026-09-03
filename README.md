@@ -204,29 +204,35 @@ is raised from HikariCP's default of 10 to 50.
 
 ## Database Console
 
-The H2 in-memory database console is available for easy viewing at:\
+The H2 in-memory database console is **off by default** and lives in the
+`dev` profile ([`application-dev.properties`](src/main/resources/application-dev.properties)).
+`docker compose up` sets that profile, so the local stack has it at:\
 **http://localhost:8080/h2-console**
+
+Running the app directly needs the profile passed explicitly:
+
+    mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
 **JDBC URL:** `jdbc:h2:mem:taskdb`\
 **Username:** `sa`\
 **Password:** `password`
 
-> ⚠️ **This is the largest residual risk in the project — local use only.**
-> The console is enabled with `spring.h2.console.settings.web-allow-others=true`
-> and there is no Spring Security on the classpath, so it accepts arbitrary
-> SQL from *anyone who can reach port 8080* — no authentication, and the
-> credentials are in this README and in `application.properties` anyway.
-> The `web-allow-others` flag exists because the Docker setup makes requests
-> arrive via NAT rather than loopback; it is not a hardening measure.
+> ⚠️ **The `dev` profile is for local use only.**
+> The console is not a viewer for `taskdb` — it is a generic H2 client whose
+> login form takes an arbitrary JDBC url, user and password, so reaching it
+> means arbitrary SQL against a connection target of the caller's choosing.
+> There is no Spring Security on the classpath to gate it, and the `dev`
+> profile also sets `spring.h2.console.settings.web-allow-others=true`, which
+> turns off H2's own local-only check (the Docker setup makes requests arrive
+> via NAT rather than loopback, so the console is refused without it — the
+> flag is a workaround, not a hardening measure).
 >
-> Before this app is exposed to any network you do not fully control, do one
-> of the following:
->
-> - set `spring.h2.console.enabled=false`, or
-> - move the console (and `/actuator/**`) behind Spring Security, or
-> - move both into a `dev`-only profile
->   (`application-dev.properties`) so a production profile cannot enable them
->   by accident.
+> The default profile is the safe one, so a deployment has to opt in rather
+> than remember to opt out. Do not set `SPRING_PROFILES_ACTIVE=dev` on any
+> network you do not fully control. If you ever need the console somewhere
+> less trusted, put Spring Security in front of `/h2-console/**` and
+> `/actuator/**` first — see
+> [Before Adding Spring Security](SECURITY.md#before-adding-spring-security).
 >
 > See [`SECURITY.md`](SECURITY.md) for the related Actuator exposure notes.
 

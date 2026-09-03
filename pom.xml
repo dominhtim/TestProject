@@ -30,9 +30,9 @@
         <!-- Mirrors the JaCoCo <excludes> below for the same class. -->
         <sonar.coverage.exclusions>**/MySpringAppApplication.java</sonar.coverage.exclusions>
 
-        <!-- Never pin jackson-databind alone; the BOM import keeps the stack
-             consistent. -->
-        <jackson2-databind.version>2.22.2</jackson2-databind.version>
+        <!-- Both Jackson lines come from a BOM. Never pin one artifact alone: Spring
+             Boot manages the 2.x stack, so a lone pin drifts from its own core. -->
+        <jackson2-bom.version>2.22.2</jackson2-bom.version>
         <jackson3-bom.version>3.2.2</jackson3-bom.version>
     </properties>
 
@@ -42,6 +42,16 @@
                 <groupId>tools.jackson</groupId>
                 <artifactId>jackson-bom</artifactId>
                 <version>${jackson3-bom.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Overrides the 2.x stack Spring Boot manages (jackson-2-bom, currently
+                 2.21.5). Both BOMs agree on jackson-annotations 2.22, so they coexist. -->
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson2-bom.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -180,7 +190,6 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>${jackson2-databind.version}</version>
         </dependency>
     </dependencies>
 

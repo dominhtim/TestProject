@@ -1,15 +1,5 @@
-# Local observability stack: run the app plus Prometheus (metrics), Jaeger
-# (traces), Loki+Alloy (logs), and Grafana (dashboards) together.
-#
-#   docker compose up --build
-#
-# Then visit:
-#   App:        http://localhost:8080
-#   Swagger UI: http://localhost:8080/swagger-ui.html
-#   Prometheus: http://localhost:9090
-#   Jaeger UI:  http://localhost:16686
-#   Alloy UI:   http://localhost:12345  (log collector debug/status page)
-#   Grafana:    http://localhost:3000  (login: admin / admin)
+# Local stack: app + Prometheus, Jaeger, Loki+Alloy, Grafana. `docker compose up --build`.
+# Ports and URLs are listed in README.md.
 
 services:
   app:
@@ -17,13 +7,10 @@ services:
     ports:
       - "8080:8080"
     environment:
-      # Turns on the H2 console (application-dev.properties). Deliberately set
-      # here rather than in the image, so only this local stack gets it.
+      # H2 console, for this local stack only. See CLAUDE.md.
       - SPRING_PROFILES_ACTIVE=dev
-      # Send traces to the Jaeger container by its service name (reachable
-      # over the default compose network), rather than the localhost
-      # default in application.properties (which assumes you're running
-      # the app directly on your host while this stack runs in Docker).
+      # Jaeger by compose service name; application.properties defaults to localhost
+      # for running the app on the host.
       - MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     depends_on:
       - jaeger
@@ -44,18 +31,13 @@ services:
     depends_on:
       - app
 
-  # Log storage. Runs with its own baked-in single-binary config
-  # (/etc/loki/local-config.yaml in the image) - filesystem storage, no auth,
-  # which is all a local dev stack needs.
+  # Log storage, on the image's baked-in single-binary config.
   loki:
     image: grafana/loki:3.7.4
     ports:
       - "3100:3100"
 
-  # Log collector: discovers every container on the Docker daemon and ships
-  # its stdout/stderr to Loki (see observability/alloy/config.alloy).
-  # Grafana Alloy is the current recommended agent for this - Promtail (the
-  # older tool for the same job) reached end-of-life in March 2026.
+  # Log collector; Promtail's replacement. See observability/alloy/config.alloy.
   alloy:
     image: grafana/alloy:v1.18.0
     volumes:

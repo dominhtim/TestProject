@@ -1,13 +1,10 @@
 # --- STAGE 1: Build ---
-# The JDK here must match the JRE in stage 2. It previously did not (JDK 26
-# building for a JRE 25 runtime); pom.xml now uses <release> so the compiler
-# would catch it, but bump both stages together regardless.
+# Must match the JRE in stage 2 - bump both together. See CLAUDE.md.
 FROM maven:3-eclipse-temurin-25-alpine AS build
 
 WORKDIR /app
 
-# pom.xml on its own first, so the dependency layer is only invalidated when
-# dependencies actually change - not on every source edit.
+# pom.xml first, so the dependency layer survives source edits.
 COPY pom.xml .
 RUN mvn -B dependency:go-offline
 

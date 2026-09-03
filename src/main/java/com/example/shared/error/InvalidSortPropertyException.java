@@ -6,15 +6,8 @@ import java.io.Serial;
 import java.util.Set;
 import java.util.TreeSet;
 
-/**
- * Raised when a client asks to sort by a property that is not sortable.
- * <p>
- * Without this check the unknown property reaches Spring Data's criteria
- * builder and blows up as an unhandled runtime exception, which the generic
- * handler reports as a 500 - a server fault for what is plainly a bad
- * request. The allowlist also stops a caller ordering by a column the API
- * does not expose, which would let them infer its values from the sequence.
- */
+/** Client asked to sort by a non-sortable property. Unscreened this is a 500 from the
+ *  criteria builder, and orders by columns the API does not expose. See CLAUDE.md. */
 @Getter
 public class InvalidSortPropertyException extends RuntimeException {
 

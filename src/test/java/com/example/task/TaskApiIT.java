@@ -15,12 +15,8 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * The full app on a random port, exercised over real HTTP via
- * {@link RestTestClient} (Boot 4's replacement for {@code TestRestTemplate}).
- * The {@code IT} suffix puts it in failsafe's {@code mvn verify} run rather
- * than the fast {@code mvn test} one.
- */
+/** The full app on a random port over real HTTP via RestTestClient. IT suffix puts it
+ *  in failsafe's {@code mvn verify} run. */
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @AutoConfigureRestTestClient
 class TaskApiIT {
@@ -43,8 +39,7 @@ class TaskApiIT {
 
     @Test
     void shouldSupportFullCrudLifecycleOverRealHttp() {
-        // A Map, not TaskDto: id is READ_ONLY on the DTO, so Jackson won't
-        // deserialize it back out even though it's there on the wire.
+        // A Map, not TaskDto: id is READ_ONLY, so Jackson drops it on the way back in.
         TaskDto newTask = TaskDto.builder().title("Ship the release").completed(false).build();
         var createResult = restClient.post().uri(API_V1_TASKS)
                 .body(newTask)
@@ -131,8 +126,7 @@ class TaskApiIT {
 
     @Test
     void shouldCapAnOversizedPageSizeRequest() {
-        // Without max-page-size this is an unauthenticated way to ask the
-        // server to materialise the whole table.
+        // Without max-page-size this materialises the whole table, unauthenticated.
         restClient.get().uri(API_V1_TASKS + "?size=100000")
                 .exchange()
                 .expectStatus().isOk()
@@ -185,8 +179,7 @@ class TaskApiIT {
 
     @Test
     void shouldCreateTaskFromMinimalJsonMissingOptionalFields() {
-        // Regression test: Jackson must not require "completed"/"id" just
-        // because TaskDto also has an all-args constructor (see TaskDto).
+        // Regression: the all-args constructor must not become Jackson's creator.
         Map<String, Object> minimalPayload = Map.of("title", "Buy groceries");
 
         TaskDto created = restClient.post().uri(API_V1_TASKS)

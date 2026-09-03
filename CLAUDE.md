@@ -84,6 +84,11 @@ it. Object's inherited identity semantics have no such problem, and inside a per
 Hibernate already guarantees one instance per row. `TaskEqualityTest` and `TaskPersistenceIT`
 exist to catch someone reintroducing field-based equality.
 
+Setters are per-field, not a blanket `@Setter` on the class. `title` and `completed` are public;
+`id` is package-private (Hibernate assigns it by field access, so only this package's tests need
+to simulate that); `version` has **no setter at all**. A public `setVersion` would let any caller
+overwrite the optimistic-locking token that `TaskConcurrencyIT` exists to defend.
+
 `TaskDto` **does** use `@Data` — it is a detached value object with no persistence identity, so
 value equality is correct there. Keeping it separate from the entity also satisfies SonarQube
 java:S4684 (entities shouldn't be `@RequestMapping` arguments or return types).

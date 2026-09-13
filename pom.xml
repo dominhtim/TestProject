@@ -22,7 +22,7 @@
         <lombok.version>1.18.48</lombok.version>
         <failsafe-surefire.version>3.6.0</failsafe-surefire.version>
         <!-- Third-party, not covered by Spring Boot's dependency management. -->
-        <springdoc.version>3.1.0</springdoc.version>
+        <springdoc.version>3.1.1</springdoc.version>
         <jacoco.version>0.8.15</jacoco.version>
         <sonar-maven-plugin.version>5.8.0.7211</sonar-maven-plugin.version>
         <!-- Both reports needed: much coverage comes from the integration tests. -->

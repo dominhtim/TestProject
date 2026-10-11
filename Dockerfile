@@ -1,6 +1,6 @@
 # --- STAGE 1: Build ---
 # Must match the JRE in stage 2 - bump both together.
-FROM maven:3-eclipse-temurin-25-alpine AS build
+FROM maven:3-eclipse-temurin-27-alpine AS build
 
 WORKDIR /app
 
